@@ -28,7 +28,7 @@ function Runner(outerContainerId, opt_config) {
   this.canvas = null;
   this.canvasCtx = null;
 
-  this.tRex = null;
+  this.tRexes = [];
 
   this.distanceMeter = null;
   this.distanceRan = 0;
@@ -83,6 +83,28 @@ var DEFAULT_WIDTH = 600;
  * @const
  */
 var FPS = 60;
+
+/** @const */
+var GENERATION_SIZE = 20;
+
+var tRexBoxColors = [
+  '#FF355E',
+  '#FD5B78',
+  '#FF6037',
+  '#FF9966',
+  '#FF9933',
+  '#FFCC33',
+  '#FFFF66',
+  '#FFFF66',
+  '#CCFF00',
+  '#66FF66',
+  '#AAF0D1',
+  '#50BFE6',
+  '#FF6EFF',
+  '#EE34D2',
+  '#FF00CC',
+  '#FF00CC'
+];
 
 /** @const */
 var IS_HIDPI = window.devicePixelRatio > 1;
@@ -269,10 +291,14 @@ Runner.prototype = {
         case 'GRAVITY':
         case 'MIN_JUMP_HEIGHT':
         case 'SPEED_DROP_COEFFICIENT':
-          this.tRex.config[setting] = value;
+          this.tRexes.forEach(function(tRex) {
+            tRex.config[setting] = value;
+          });
           break;
         case 'INITIAL_JUMP_VELOCITY':
-          this.tRex.setJumpVelocity(value);
+          this.tRexes.forEach(function(tRex) {
+            tRex.setJumpVelocity(value);
+          });
           break;
         case 'SPEED':
           this.setSpeed(value);
@@ -376,7 +402,9 @@ Runner.prototype = {
           this.spriteDef.TEXT_SPRITE, this.dimensions.WIDTH);
 
     // Draw t-rex
-    this.tRex = new Trex(this.canvas, this.spriteDef.TREX);
+    for (var i = 0; i < GENERATION_SIZE; i++) {
+      this.tRexes.push(new Trex(this.canvas, this.spriteDef.TREX, tRexBoxColors[i%tRexBoxColors.length]));
+    }
 
     this.outerContainerEl.appendChild(this.containerEl);
 
@@ -436,7 +464,9 @@ Runner.prototype = {
       this.distanceMeter.calcXPos(this.dimensions.WIDTH);
       this.clearCanvas();
       this.horizon.update(0, 0, true);
-      this.tRex.update(0);
+      this.tRexes.forEach(function (tRex) {
+        tRex.update(0);
+      });
 
       // Outer container and distance meter.
       if (this.playing || this.crashed || this.paused) {
@@ -445,7 +475,9 @@ Runner.prototype = {
         this.distanceMeter.update(0, Math.ceil(this.distanceRan));
         this.stop();
       } else {
-        this.tRex.draw(0, 0);
+        this.tRexes.forEach(function (tRex) {
+          tRex.draw(0, 0);
+        });
       }
 
       // Game over panel.
@@ -463,7 +495,9 @@ Runner.prototype = {
   playIntro: function() {
     if (!this.activated && !this.crashed) {
       this.playingIntro = true;
-      this.tRex.playingIntro = true;
+      this.tRexes.forEach(function (tRex) {
+        tRex.playingIntro = true;
+      });
 
       // CSS animation definition.
       var keyframes = '@-webkit-keyframes intro { ' +
@@ -498,7 +532,9 @@ Runner.prototype = {
     }
     this.runningTime = 0;
     this.playingIntro = false;
-    this.tRex.playingIntro = false;
+    this.tRexes.forEach(function (tRex) {
+      tRex.playingIntro = true;
+    });
     this.containerEl.style.webkitAnimation = '';
     this.playCount++;
 
@@ -531,15 +567,20 @@ Runner.prototype = {
     if (this.playing) {
       this.clearCanvas();
 
-      if (this.tRex.jumping) {
-        this.tRex.updateJump(deltaTime);
-      }
+      this.tRexes.forEach(function (tRex) {
+        if (tRex.status != Trex.status.CRASHED) {
+          if (tRex.jumping) {
+            tRex.updateJump(deltaTime);
+          } else if (Math.random() > 0.95) {
+            tRex.startJump(this.currentSpeed);
+          }          
+        }
+      }, this);
 
       this.runningTime += deltaTime;
       var hasObstacles = this.runningTime > this.config.CLEAR_TIME;
 
-      // First jump triggers the intro.
-      if (this.tRex.jumpCount == 1 && !this.playingIntro) {
+      if (this.tRexes[0].jumpCount == 1 && !this.playingIntro) {
         this.playIntro();
       }
 
@@ -553,17 +594,20 @@ Runner.prototype = {
       }
 
       // Check for collisions.
-      var collision = hasObstacles &&
-          checkForCollision(this.horizon.obstacles[0], this.tRex, this.canvasCtx);
-
-      if (!collision) {
-        this.distanceRan += this.currentSpeed * deltaTime / this.msPerFrame;
-
-        if (this.currentSpeed < this.config.MAX_SPEED) {
-          this.currentSpeed += this.config.ACCELERATION;
+      this.tRexes.forEach(function (tRex, index) {
+        if (tRex.status != Trex.status.CRASHED) {
+          var collision = hasObstacles &&
+              checkForCollision(this.horizon.obstacles[0], tRex, this.canvasCtx);
+          if (collision) {
+            tRex.update(deltaTime, Trex.status.CRASHED, this.currentSpeed);
+          }
         }
-      } else {
-        this.gameOver();
+      }, this);
+  
+      this.distanceRan += this.currentSpeed * deltaTime / this.msPerFrame;
+
+      if (this.currentSpeed < this.config.MAX_SPEED) {
+        this.currentSpeed += this.config.ACCELERATION;
       }
 
       var playAchievementSound = this.distanceMeter.update(deltaTime,
@@ -596,9 +640,10 @@ Runner.prototype = {
       }
     }
 
-    if (this.playing || (!this.activated &&
-        this.tRex.blinkCount < Runner.config.MAX_BLINK_COUNT)) {
-      this.tRex.update(deltaTime);
+    if (this.playing) {
+      this.tRexes.forEach(function (tRex) {
+        tRex.update(deltaTime, tRex.status, this.currentSpeed);
+      }, this);
       this.scheduleNextUpdate();
     }
   },
@@ -682,9 +727,9 @@ Runner.prototype = {
           }
         }
         // Start jump.
-        if (!this.tRex.jumping && !this.tRex.ducking) {
+        if (!this.tRexes[0].jumping && !this.tRexes[0].ducking) {
           this.playSound(this.soundFx.BUTTON_PRESS);
-          this.tRex.startJump(this.currentSpeed);
+          this.tRexes[0].startJump(this.currentSpeed);
         }
       } else if (this.playing && Runner.keycodes.DUCK[e.keyCode]) {
         e.preventDefault();
@@ -714,10 +759,10 @@ Runner.prototype = {
        e.type == Runner.events.POINTERUP;
 
     if (this.isRunning() && isjumpKey) {
-      this.tRex.endJump();
+      this.tRexes[0].endJump();
     } else if (Runner.keycodes.DUCK[keyCode]) {
-      this.tRex.speedDrop = false;
-      this.tRex.setDuck(false);
+      this.tRexes[0].speedDrop = false;
+      this.tRexes[0].setDuck(false);
     } else if (this.crashed) {
       // Check that enough time has elapsed before allowing jump key to restart.
       var deltaTime = getTimeStamp() - this.time;
@@ -729,7 +774,7 @@ Runner.prototype = {
       }
     } else if (this.paused && isjumpKey) {
       // Reset the jump state
-      this.tRex.reset();
+      this.tRexes[0].reset();
       this.play();
     }
   },
@@ -806,7 +851,9 @@ Runner.prototype = {
     if (!this.crashed) {
       this.playing = true;
       this.paused = false;
-      this.tRex.update(0, Trex.status.RUNNING);
+      this.tRexes.forEach(function(tRex) {
+        tRex.update(0, Trex.status.RUNNING);
+      });
       this.time = getTimeStamp();
       this.update();
     }
@@ -826,7 +873,9 @@ Runner.prototype = {
       this.clearCanvas();
       this.distanceMeter.reset(this.highestScore);
       this.horizon.reset();
-      this.tRex.reset();
+      this.tRexes.forEach(function (tRex) {
+        tRex.reset();
+      });
       this.playSound(this.soundFx.BUTTON_PRESS);
       this.invert(true);
       this.update();
@@ -877,7 +926,9 @@ Runner.prototype = {
       document.visibilityState != 'visible') {
       this.stop();
     } else if (!this.crashed) {
-      this.tRex.reset();
+      this.tRexes.forEach(function (tRex) {
+        tRex.reset();
+      });
       this.play();
     }
   },
@@ -1154,7 +1205,7 @@ function checkForCollision(obstacle, tRex, opt_canvasCtx) {
 
   // Debug outer box
   if (opt_canvasCtx) {
-    drawCollisionBoxes(opt_canvasCtx, tRexBox, obstacleBox);
+    drawCollisionBoxes(opt_canvasCtx, tRexBox, tRex.color, obstacleBox);
   }
 
   // Simple outer bounds check.
@@ -1175,7 +1226,7 @@ function checkForCollision(obstacle, tRex, opt_canvasCtx) {
 
         // Draw boxes for debug.
         if (opt_canvasCtx) {
-          drawCollisionBoxes(opt_canvasCtx, adjTrexBox, adjObstacleBox);
+          drawCollisionBoxes(opt_canvasCtx, adjTrexBox, tRex.color, adjObstacleBox);
         }
 
         if (crashed) {
@@ -1206,9 +1257,9 @@ function createAdjustedCollisionBox(box, adjustment) {
 /**
  * Draw the collision boxes for debug.
  */
-function drawCollisionBoxes(canvasCtx, tRexBox, obstacleBox) {
+function drawCollisionBoxes(canvasCtx, tRexBox, tRexColor, obstacleBox) {
   canvasCtx.save();
-  canvasCtx.strokeStyle = '#f00';
+  canvasCtx.strokeStyle = tRexColor;
   canvasCtx.strokeRect(tRexBox.x, tRexBox.y, tRexBox.width, tRexBox.height);
 
   canvasCtx.strokeStyle = '#0f0';
@@ -1521,9 +1572,10 @@ Obstacle.types = [
  * @param {Object} spritePos Positioning within image sprite.
  * @constructor
  */
-function Trex(canvas, spritePos) {
+function Trex(canvas, spritePos, color) {
   this.canvas = canvas;
   this.canvasCtx = canvas.getContext('2d');
+  this.color = color;
   this.spritePos = spritePos;
   this.xPos = 0;
   this.yPos = 0;
@@ -1668,11 +1720,11 @@ Trex.prototype = {
    * @param {!number} deltaTime
    * @param {Trex.status} status Optional status to switch to.
    */
-  update: function(deltaTime, opt_status) {
+  update: function(deltaTime, opt_status, speed) {
     this.timer += deltaTime;
 
     // Update the status.
-    if (opt_status) {
+    if (opt_status && opt_status != this.status) {
       this.status = opt_status;
       this.currentFrame = 0;
       this.msPerFrame = Trex.animFrames[opt_status].msPerFrame;
@@ -1685,13 +1737,22 @@ Trex.prototype = {
     }
 
     // Game intro animation, T-rex moves in from the left.
-    if (this.playingIntro && this.xPos < this.config.START_X_POS) {
-      this.xPos += Math.round((this.config.START_X_POS /
-          this.config.INTRO_DURATION) * deltaTime);
+    if (this.playingIntro) {
+      if (this.xPos < this.config.START_X_POS) {
+        this.xPos += Math.round((this.config.START_X_POS /
+            this.config.INTRO_DURATION) * deltaTime);        
+      } else {
+        this.playingIntro = false;
+      }
     }
 
     if (this.status == Trex.status.WAITING) {
       this.blink(getTimeStamp());
+    } else if (this.status == Trex.status.CRASHED) {
+      this.xPos -= Math.floor((speed * FPS / 1000) * deltaTime);
+      if (this.xPos >= 0) {
+        this.draw(this.currentAnimFrames[this.currentFrame], 0);
+      }
     } else {
       this.draw(this.currentAnimFrames[this.currentFrame], 0);
     }
