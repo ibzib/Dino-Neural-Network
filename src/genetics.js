@@ -3,75 +3,43 @@ Rocco Manzo - Rmanzo
 3/28/18
 */
 
-var population = []; //the population of neural networks (should have around 20)
-var MAX_DINOS = 20;
-var MUTATION_RATE = 0.05;
-
-var Genetics = function(populationSize, selectionSize) {
+var Genetics = function(populationSize, selectionSize, mutationRate) {
   this.populationSize = populationSize;
   this.selectionSize = selectionSize;
+  this.mutationRate = mutationRate;
 }
 
 Genetics.prototype = {
-  //creates the initial Population
-  makePopulation : function() {
-    this.population.splice(0, this.population.length);
+  init : function() {
+    this.population = [];
+  },
 
-    for(var i = 0; i < MAX_DINOS; i++){
-      var newDino = new Dino(0, new synpatic.Architect.Perceptron(0,0,0), i);
-      this.population.push(newDino);
-    }
+  // creates a new unit, adds it to population, and returns it
+  makeUnit : function(i) {
+    var newUnit = new synaptic.Architect.Perceptron(0,0,0);
+    newUnit.index = i;
+    newUnit.fitness = 0;
+    newUnit.score = 0;
+
+    this.population.push(newUnit);
+    return newUnit;
 
   },
 
-  //gets the top 5? dinos from the population and brutally executes the rest
-  getWinners : function() {
-    var winners = []; //list of winners
+  compareUnits : function(unit1, unit2) {
+    return unit1.fitness < unit2.fitness;
+  },
 
-    //add the first 5 dinos from the pop to the winners
-    for(var i = 0; i < 5; i++){
-      winners.push(population[i]);
-    }
-
-    //sorting the list so the highest fitness dino is in position 0
-    //ik insertion sort is slow but it's 5 long so it's fine
-    for(var i = 1; i < winners.length; i++){
-      for(var j = i; j > 0; j--){
-        if(winners[j].fitness <= winners[j-1].fitness){
-          break;
-        }
-        else{
-          var temp = winners[i];
-          winners[i] = winners[i-1];
-          winners[i-1] = temp;
-        }
-      }
-    }
-
-    //loop through the rest of the population to find the top 5
-    //start looping at 5 because 0-4 are already in the winners array
-    for(var i = 5; i < population.length; i++){
-        for(var j = winners.length-1; j >= 0; j--){
-          if(population[i].fitness > winners[j].fitness){
-            winners[j] = population[i];
-          }
-          else{
-            break;
-          }
-        }
-    }
-    return winners;
+  getWinner : function() {
+    return this.population[Math.floor(Math.random()*this.selectionSize)];
   },
 
   //evolves the population
   evolvePopulation : function() {
 
-    var winners = getWinners();
-    for(var i = 0; i < winners.length; i++){ //puts the winners at the front of the population array
-      this.population[i] = winners[i];
-    }
-    for(var i = 5; i < population.length; i++){ //makes baby dinos
-      this.population[i] = makeBabyDino(winners[Math.floor(Math.random()*6)], winners[Math.floor(Math.random()*6)]);
+    this.population.sort(compareUnits);
+    for(var i = this.selectionSize; i < this.populationSize; i++){ //makes baby dinos
+      this.population[i] = makeBabyDino(getWinner(), getWinner());
     }
   },
 
@@ -102,17 +70,17 @@ Genetics.prototype = {
   mutate : function(babyDino) {
     //randomly mutates bias
     for(var i = 0; i < babyDino.neuron.length; i++) {
-      if(Math.random() < this.MUTATION_RATE){
+      if(Math.random() < this.mutationRate){
         var mutateFactor = 1 + ((Math.random() - 0.5) * 3 + (Math.random() - 0.5)); //change formula?
         babyDino.neurons[i]['bias'] *= mutateFactor;
-    }
+      }
     }
     //randomly mutates weight
     for(var i = 0; i < babyDino.neuron.length; i++) {
-      if(Math.random() < this.MUTATION_RATE){
+      if(Math.random() < this.mutationRate){
         var mutateFactor = 1 + ((Math.random() - 0.5) * 3 + (Math.random() - 0.5)); //change formula?
         babyDino.neurons[i]['weight'] *= mutateFactor;
-    }
+      }
     }
   },
 
