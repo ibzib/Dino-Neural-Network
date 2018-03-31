@@ -17,7 +17,7 @@ Genetics.prototype = {
       var newUnit = new synaptic.Architect.Perceptron(0,0,0);
       newUnit.index = i;
       newUnit.fitness = 0;
-      newUnit.score = 0;      
+      newUnit.score = 0;
       this.population.push(newUnit);
     }
   },
@@ -32,9 +32,11 @@ Genetics.prototype = {
     this.population.sort(function(unit1, unit2) {
       return unit1.fitness < unit2.fitness;
     });
-    for(var i = this.selectionSize; i < this.populationSize; i++){ //makes baby dinos
-      this.population[i] = this.makeBabyDino(this.getWinner(), this.getWinner());
-    }
+
+    // uncomment this when makeBabyDino is implemented
+    // for(var i = this.selectionSize; i < this.populationSize; i++){ //makes baby dinos
+    //   this.population[i] = this.makeBabyDino(this.getWinner(), this.getWinner());
+    // }
   },
 
   //makes a baby dino given a mommy and a daddy dino and mutates it

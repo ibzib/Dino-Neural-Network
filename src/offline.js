@@ -613,6 +613,7 @@ Runner.prototype = {
               checkForCollision(this.horizon.obstacles[0], tRex, this.canvasCtx);
           if (collision) {
             tRex.update(deltaTime, Trex.status.CRASHED, this.currentSpeed);
+            tRex.perceptron.fitness = this.distanceRan;
             this.collisionCount++;
           }
         }
