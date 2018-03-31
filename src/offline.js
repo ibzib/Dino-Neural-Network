@@ -380,7 +380,7 @@ Runner.prototype = {
     for (var i = 0; i < this.genetics.populationSize; i++) {
       var color = tRexBoxColors[i%tRexBoxColors.length];
       var newTrex = new Trex(this.canvas, this.spriteDef.TREX, color);
-      newTrex.perceptron = this.genetics.makeUnit(i);
+      newTrex.perceptron = this.genetics.population[i];
       this.tRexes.push(newTrex);
     }
     this.collisionCount = 0;
@@ -890,6 +890,7 @@ Runner.prototype = {
       this.distanceMeter.reset(this.highestScore);
       this.horizon.reset();
 
+      this.genetics.evolvePopulation();
       this.spawnTrexes();
       this.tRexes.forEach(function (tRex) {
         tRex.reset();

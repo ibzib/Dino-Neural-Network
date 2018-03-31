@@ -10,24 +10,16 @@ var Genetics = function(populationSize, selectionSize, mutationRate) {
 }
 
 Genetics.prototype = {
+  // creates initial population
   init : function() {
     this.population = [];
-  },
-
-  // creates a new unit, adds it to population, and returns it
-  makeUnit : function(i) {
-    var newUnit = new synaptic.Architect.Perceptron(0,0,0);
-    newUnit.index = i;
-    newUnit.fitness = 0;
-    newUnit.score = 0;
-
-    this.population.push(newUnit);
-    return newUnit;
-
-  },
-
-  compareUnits : function(unit1, unit2) {
-    return unit1.fitness < unit2.fitness;
+    for (var i = 0; i < this.populationSize; i++) {
+      var newUnit = new synaptic.Architect.Perceptron(0,0,0);
+      newUnit.index = i;
+      newUnit.fitness = 0;
+      newUnit.score = 0;      
+      this.population.push(newUnit);
+    }
   },
 
   getWinner : function() {
@@ -37,9 +29,11 @@ Genetics.prototype = {
   //evolves the population
   evolvePopulation : function() {
 
-    this.population.sort(compareUnits);
+    this.population.sort(function(unit1, unit2) {
+      return unit1.fitness < unit2.fitness;
+    });
     for(var i = this.selectionSize; i < this.populationSize; i++){ //makes baby dinos
-      this.population[i] = makeBabyDino(getWinner(), getWinner());
+      this.population[i] = this.makeBabyDino(this.getWinner(), this.getWinner());
     }
   },
 
@@ -63,20 +57,20 @@ Genetics.prototype = {
         babyDino.neurons[i]['weight'] = daddy.neurons[i]; //do I need the ['bias']??
       }
     }
-    return mutate(babyDino);
+    return this.mutate(babyDino);
   },
 
   //mutates a newly made baby dinos
   mutate : function(babyDino) {
     //randomly mutates bias
-    for(var i = 0; i < babyDino.neuron.length; i++) {
+    for(var i = 0; i < babyDino.neurons.length; i++) {
       if(Math.random() < this.mutationRate){
         var mutateFactor = 1 + ((Math.random() - 0.5) * 3 + (Math.random() - 0.5)); //change formula?
         babyDino.neurons[i]['bias'] *= mutateFactor;
       }
     }
     //randomly mutates weight
-    for(var i = 0; i < babyDino.neuron.length; i++) {
+    for(var i = 0; i < babyDino.neurons.length; i++) {
       if(Math.random() < this.mutationRate){
         var mutateFactor = 1 + ((Math.random() - 0.5) * 3 + (Math.random() - 0.5)); //change formula?
         babyDino.neurons[i]['weight'] *= mutateFactor;
