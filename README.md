@@ -1,4 +1,4 @@
-# Dino Neural Network
+# Dino Neural Network 🦖
 
 
 ### Acknowledgements
