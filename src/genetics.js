@@ -5,6 +5,7 @@ Rocco Manzo - Rmanzo
 
 var population = []; //the population of neural networks (should have around 20)
 var MAX_DINOS = 20;
+var MUTATION_RATE = 0.05;
 
 //creates the initial Population
 makePopulation : function() = {
@@ -17,7 +18,7 @@ makePopulation : function() = {
 
 }
 
-//returns an array of the top 5 Dinos
+//gets the top 5? dinos from the population and brutally executes the rest
 getWinners : function() = {
   var winners = []; //list of winners
 
@@ -57,13 +58,52 @@ getWinners : function() = {
 }
 
 //evolves the population
-evolvePopulation : function() = {}
+evolvePopulation : function() = {
 
-//gets the top 5? dinos from the population and brutally executes the rest
-selectDinos : function() = {}
+  var winners = getWinners();
+  for(int i = 0; i < winners.length; i++){ //puts the winners at the front of the population array
+    this.population[i] = winners[i];
+  }
+  for(int i = 5; i < population.length; i++){ //makes baby dinos
+    this.population[i] = makeBabyDino(winners[Math.floor(Math.random()*6)], winners[Math.floor(Math.random()*6)]);
+  }
+}
 
-//makes a baby dino given a mommy and a daddy dino
-makeBabyDino : function(mommy, daddy) = {}
+//makes a baby dino given a mommy and a daddy dino and mutates it
+makeBabyDino : function(mommy, daddy) = {
+  var babyDino = mommy;
+  //randomly selects bias form either its mom or dad
+  for(int i = 0; i < babyDino.neurons.length; i++){
+    if(Math.random() > 0.5){
+      babyDino.neurons[i]['bias'] = daddy.neurons[i]; //do I need the ['bias']??
+    }
+  }
 
-//mutates a newly made dinos
-mutate : function(babyDino) = {}
+  /*
+  do we want to do this in 1 loop and get the bias and weight from the same parent??
+  */
+
+  //randomly selects weights form each parent
+  for(int i = 0; i < babyDino.neurons.length; i++){
+    if(Math.random() > 0.5){
+      babyDino.neurons[i]['weight'] = daddy.neurons[i]; //do I need the ['bias']??
+    }
+  }
+  return mutate(babyDino);
+}
+
+//mutates a newly made baby dinos
+mutate : function(babyDino) = {
+  //randomly mutates bias
+  for(int i = 0; i < babyDino.neuron.length)
+    if(Math.random() < this.MUTATION_RATE){
+      var mutateFactor = 1 + ((Math.random() - 0.5) * 3 + (Math.random() - 0.5)); //change formula?
+      babyDino.neurons[i]['bias'] *= mutateFactor;
+  }
+  //randomly mutates weight
+  for(int i = 0; i < babyDino.neuron.length)
+    if(Math.random() < this.MUTATION_RATE){
+      var mutateFactor = 1 + ((Math.random() - 0.5) * 3 + (Math.random() - 0.5)); //change formula?
+      babyDino.neurons[i]['weight'] *= mutateFactor;
+  }
+}
