@@ -63,6 +63,9 @@ function Runner(outerContainerId, opt_config) {
   this.images = {};
   this.imagesLoaded = 0;
 
+  // Genetic algorithm
+  this.genetics = new Genetics(POPULATION_SIZE, SELECTION_SIZE);
+
   if (this.isDisabled()) {
     this.setupDisabledRunner();
   } else {
@@ -84,8 +87,8 @@ var DEFAULT_WIDTH = 600;
  */
 var FPS = 60;
 
-/** @const */
-var GENERATION_SIZE = 20;
+var POPULATION_SIZE = 20;
+var SELECTION_SIZE = 5;
 
 var tRexBoxColors = [
   '#FF355E',
@@ -370,6 +373,14 @@ Runner.prototype = {
     }
   },
 
+  spawnDinos: function() {
+    this.tRexes = [];
+    for (var i = 0; i < this.genetics.populationSize; i++) {
+      this.tRexes.push(new Trex(this.canvas, this.spriteDef.TREX, tRexBoxColors[i%tRexBoxColors.length]));
+    }
+    this.collisionCount = 0;
+  },
+
   /**
    * Game initialiser.
    */
@@ -401,10 +412,7 @@ Runner.prototype = {
     this.distanceMeter = new DistanceMeter(this.canvas,
           this.spriteDef.TEXT_SPRITE, this.dimensions.WIDTH);
 
-    // Draw t-rex
-    for (var i = 0; i < GENERATION_SIZE; i++) {
-      this.tRexes.push(new Trex(this.canvas, this.spriteDef.TREX, tRexBoxColors[i%tRexBoxColors.length]));
-    }
+    this.spawnDinos();
 
     this.outerContainerEl.appendChild(this.containerEl);
 
@@ -600,14 +608,19 @@ Runner.prototype = {
               checkForCollision(this.horizon.obstacles[0], tRex, this.canvasCtx);
           if (collision) {
             tRex.update(deltaTime, Trex.status.CRASHED, this.currentSpeed);
+            this.collisionCount++;
           }
         }
       }, this);
-  
-      this.distanceRan += this.currentSpeed * deltaTime / this.msPerFrame;
 
-      if (this.currentSpeed < this.config.MAX_SPEED) {
-        this.currentSpeed += this.config.ACCELERATION;
+      if (this.collisionCount < this.tRexes.length) {
+        this.distanceRan += this.currentSpeed * deltaTime / this.msPerFrame;
+
+        if (this.currentSpeed < this.config.MAX_SPEED) {
+          this.currentSpeed += this.config.ACCELERATION;
+        }
+      } else {        
+        this.gameOver();
       }
 
       var playAchievementSound = this.distanceMeter.update(deltaTime,
@@ -819,8 +832,6 @@ Runner.prototype = {
     this.crashed = true;
     this.distanceMeter.achievement = false;
 
-    this.tRex.update(100, Trex.status.CRASHED);
-
     // Game over panel.
     if (!this.gameOverPanel) {
       this.gameOverPanel = new GameOverPanel(this.canvas,
@@ -873,9 +884,12 @@ Runner.prototype = {
       this.clearCanvas();
       this.distanceMeter.reset(this.highestScore);
       this.horizon.reset();
+
+      this.spawnDinos();
       this.tRexes.forEach(function (tRex) {
         tRex.reset();
       });
+
       this.playSound(this.soundFx.BUTTON_PRESS);
       this.invert(true);
       this.update();
