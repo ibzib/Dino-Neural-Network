@@ -90,6 +90,8 @@ var FPS = 60;
 var POPULATION_SIZE = 20;
 var SELECTION_SIZE = 5;
 var MUTATION_RATE = 0.05;
+var AUTO_RESTART = true;
+var RESTART_DELAY = 3000; // ms before restarting when AUTO_RESTART is set
 
 var tRexBoxColors = [
   '#FF355E',
@@ -854,6 +856,13 @@ Runner.prototype = {
 
     // Reset the time clock.
     this.time = getTimeStamp();
+
+    if (AUTO_RESTART) {
+      var that = this; // save context
+      window.setTimeout(function() {
+        that.restart();
+      }, RESTART_DELAY);
+    }
   },
 
   stop: function() {

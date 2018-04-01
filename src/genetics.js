@@ -7,6 +7,7 @@ var Genetics = function(populationSize, selectionSize, mutationRate) {
   this.populationSize = populationSize;
   this.selectionSize = selectionSize;
   this.mutationRate = mutationRate;
+  this.init();
 }
 
 Genetics.prototype = {
