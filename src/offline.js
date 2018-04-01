@@ -65,7 +65,6 @@ function Runner(outerContainerId, opt_config) {
 
   // Genetic algorithm
   this.genetics = new Genetics(POPULATION_SIZE, SELECTION_SIZE, MUTATION_RATE);
-  this.genetics.init();
 
   if (this.isDisabled()) {
     this.setupDisabledRunner();
@@ -379,7 +378,7 @@ Runner.prototype = {
     this.tRexes = [];
     for (var i = 0; i < this.genetics.populationSize; i++) {
       var color = tRexBoxColors[i%tRexBoxColors.length];
-      var newTrex = new Trex(this.canvas, this.spriteDef.TREX, color);
+      var newTrex = new Trex(this.canvas, this.spriteDef.TREX, color, this.playCount);
       newTrex.perceptron = this.genetics.population[i];
       this.tRexes.push(newTrex);
     }
@@ -1593,12 +1592,17 @@ Obstacle.types = [
  * @param {Object} spritePos Positioning within image sprite.
  * @constructor
  */
-function Trex(canvas, spritePos, color) {
+function Trex(canvas, spritePos, color, playCount) {
   this.canvas = canvas;
   this.canvasCtx = canvas.getContext('2d');
   this.color = color;
   this.spritePos = spritePos;
-  this.xPos = 0;
+  this.config = Trex.config;
+  if (playCount == 0) {
+    this.xPos = 0;
+  } else {
+    this.xPos = this.config.START_X_POS;
+  }
   this.yPos = 0;
   // Position when on the ground.
   this.groundYPos = 0;
@@ -1609,7 +1613,6 @@ function Trex(canvas, spritePos, color) {
   this.animStartTime = 0;
   this.timer = 0;
   this.msPerFrame = 1000 / FPS;
-  this.config = Trex.config;
   // Current status.
   this.status = Trex.status.WAITING;
 
@@ -1758,13 +1761,9 @@ Trex.prototype = {
     }
 
     // Game intro animation, T-rex moves in from the left.
-    if (this.playingIntro) {
-      if (this.xPos < this.config.START_X_POS) {
-        this.xPos += Math.round((this.config.START_X_POS /
-            this.config.INTRO_DURATION) * deltaTime);        
-      } else {
-        this.playingIntro = false;
-      }
+    if (this.playingIntro && this.xPos < this.config.START_X_POS) {
+      this.xPos += Math.round((this.config.START_X_POS /
+          this.config.INTRO_DURATION) * deltaTime);
     }
 
     if (this.status == Trex.status.WAITING) {
