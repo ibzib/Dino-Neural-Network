@@ -32,4 +32,8 @@ We chose the Google Chrome dinosaur game to test our genetic algorithm. The game
 \includegraphics[width=\textwidth]{dino}
 \end{figure}
 
-\end{document}  
+We had to make some adjustments to the game to adapt it to our algorithm. For instance, the original game features a single dinosaur, while we wanted to make a whole generation of dinosaurs run the same course simultaneously. In order to measure the fitness of each individual dinosaur, when one dinosaur collides with an obstacle, we record the distance it ran and stop it from running any further. Instead of ending the game upon the first collision, our modified game keeps running until no dinosaurs remain. Finally, when the game does end, instead of waiting for user input to restart the game, we have the game restart automatically after some set delay.
+
+Our modified game code is found in the file \verb|src/offline.js|.
+
+\end{document}
