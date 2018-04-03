@@ -8,4 +8,4 @@
 ### TODO
 - [X] record fitness of each dino
 - [X] figure out why dinos start further back after restarting
-- [ ] display individual dino scores
+- [X] display individual dino scores

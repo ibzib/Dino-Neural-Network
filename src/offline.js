@@ -92,24 +92,16 @@ var SELECTION_SIZE = 5;
 var MUTATION_RATE = 0.05;
 var AUTO_RESTART = true;
 var RESTART_DELAY = 3000; // ms before restarting when AUTO_RESTART is set
+var SHOW_DISTANCE_METER = false;
+var SHOW_FITNESS_SCORES = true;
 
 var tRexBoxColors = [
-  '#FF355E',
-  '#FD5B78',
-  '#FF6037',
-  '#FF9966',
-  '#FF9933',
-  '#FFCC33',
-  '#FFFF66',
-  '#FFFF66',
-  '#CCFF00',
-  '#66FF66',
-  '#AAF0D1',
-  '#50BFE6',
-  '#FF6EFF',
-  '#EE34D2',
-  '#FF00CC',
-  '#FF00CC'
+  'blue',
+  'magenta',
+  'darkgreen',
+  'deeppink',
+  'indigo',
+  'red'
 ];
 
 /** @const */
@@ -379,7 +371,7 @@ Runner.prototype = {
   spawnTrexes: function() {
     this.tRexes = [];
     for (var i = 0; i < this.genetics.populationSize; i++) {
-      var color = tRexBoxColors[i%tRexBoxColors.length];
+      var color = tRexBoxColors[i % tRexBoxColors.length]
       var newTrex = new Trex(this.canvas, this.spriteDef.TREX, color, this.playCount);
       newTrex.perceptron = this.genetics.population[i];
       this.tRexes.push(newTrex);
@@ -614,8 +606,9 @@ Runner.prototype = {
               checkForCollision(this.horizon.obstacles[0], tRex, this.canvasCtx);
           if (collision) {
             tRex.update(deltaTime, Trex.status.CRASHED, this.currentSpeed);
-            tRex.perceptron.fitness = this.distanceRan;
             this.collisionCount++;
+          } else {
+            tRex.perceptron.fitness = this.distanceRan;
           }
         }
       }, this);
@@ -635,6 +628,15 @@ Runner.prototype = {
 
       if (playAchievementSound) {
         this.playSound(this.soundFx.SCORE);
+      }
+
+      if (SHOW_FITNESS_SCORES) {
+        this.tRexes.forEach(function(tRex, index) {
+          this.canvasCtx.fillStyle = tRex.color;
+          var x = this.dimensions.WIDTH-45;
+          var y = (index+1)*(this.dimensions.HEIGHT / (POPULATION_SIZE+1));
+          this.canvasCtx.fillText(tRex.perceptron.fitness.toFixed(), x, y);
+        }, this);
       }
 
       // Night mode.
@@ -2134,7 +2136,7 @@ DistanceMeter.prototype = {
    * @return {boolean} Whether the acheivement sound fx should be played.
    */
   update: function(deltaTime, distance) {
-    var paint = true;
+    var paint = SHOW_DISTANCE_METER;
     var playSound = false;
 
     if (!this.achievement) {
@@ -2190,7 +2192,9 @@ DistanceMeter.prototype = {
       }
     }
 
-    this.drawHighScore();
+    if (SHOW_DISTANCE_METER) {
+      this.drawHighScore();
+    }
     return playSound;
   },
 
