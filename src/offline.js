@@ -87,9 +87,6 @@ var DEFAULT_WIDTH = 600;
  */
 var FPS = 60;
 
-var POPULATION_SIZE = 20;
-var SELECTION_SIZE = 5;
-var MUTATION_RATE = 0.05;
 var AUTO_RESTART = true;
 var RESTART_DELAY = 3000; // ms before restarting when AUTO_RESTART is set
 var SHOW_DISTANCE_METER = false;
@@ -573,13 +570,13 @@ Runner.prototype = {
     if (this.playing) {
       this.clearCanvas();
 
-      this.tRexes.forEach(function (tRex) {
+      this.tRexes.forEach(function (tRex, index) {
         if (tRex.status != Trex.status.CRASHED) {
           if (tRex.jumping) {
             tRex.updateJump(deltaTime);
-          } else if (Math.random() > 0.95) {
+          } else if (this.genetics.activate(index, this.horizon.obstacles[0])) {
             tRex.startJump(this.currentSpeed);
-          }          
+          }
         }
       }, this);
 

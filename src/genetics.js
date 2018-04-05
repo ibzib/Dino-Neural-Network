@@ -3,6 +3,19 @@ Rocco Manzo - Rmanzo
 3/28/18
 */
 
+// parameters for genetic algo
+var POPULATION_SIZE = 20; // number of test subjects per generation
+var SELECTION_SIZE = 5; // number of test subjects selected to continue
+var MUTATION_RATE = 0.05;
+
+// neural network: # of neurons per layer
+var N_INPUTS = 4;
+var N_HIDDEN = 6;
+var N_OUTPUTS = 1;
+
+// for debugging -- just make dinos jump randomly
+var RANDOM_JUMP = false;
+
 var Genetics = function(populationSize, selectionSize, mutationRate) {
   this.populationSize = populationSize;
   this.selectionSize = selectionSize;
@@ -15,7 +28,7 @@ Genetics.prototype = {
   init : function() {
     this.population = [];
     for (var i = 0; i < this.populationSize; i++) {
-      var newUnit = new synaptic.Architect.Perceptron(0,0,0);
+      var newUnit = new synaptic.Architect.Perceptron(N_INPUTS,N_HIDDEN,N_OUTPUTS);
       newUnit.index = i;
       newUnit.fitness = 0;
       newUnit.score = 0;
@@ -80,6 +93,23 @@ Genetics.prototype = {
       }
     }
   },
+
+  activate : function(index, obstacle) {
+    if (!obstacle) {
+      return 0; // if no obstacle exists, don't jump
+    }
+    if (RANDOM_JUMP) {
+      return Math.random() > 0.5;
+    }
+
+    var inputs = [];
+    inputs.push(obstacle.xPos);
+    inputs.push(obstacle.yPos);
+    inputs.push(obstacle.typeConfig.width * obstacle.size);
+    inputs.push(obstacle.typeConfig.height);
+    var outputs = this.population[index].activate(inputs);
+    return outputs[0] > 0.5;
+  }
 
 }
 
