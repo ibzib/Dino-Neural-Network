@@ -632,7 +632,11 @@ Runner.prototype = {
 
       if (SHOW_FITNESS_SCORES) {
         this.tRexes.forEach(function(tRex, index) {
-          this.canvasCtx.fillStyle = tRex.color;
+          if (tRex.status == Trex.status.CRASHED) {
+            this.canvasCtx.fillStyle = 'lightgray';
+          } else {
+            this.canvasCtx.fillStyle = tRex.color;
+          }
           var x = this.dimensions.WIDTH-45;
           var y = (index+1)*(this.dimensions.HEIGHT / (POPULATION_SIZE+1));
           this.canvasCtx.fillText(tRex.perceptron.fitness.toFixed(), x, y);
