@@ -4,7 +4,7 @@ Rocco Manzo - Rmanzo
 */
 
 // parameters for genetic algo
-var POPULATION_SIZE = 15; // number of test subjects per generation
+var POPULATION_SIZE = 20; // number of test subjects per generation
 var SELECTION_SIZE = 5; // number of test subjects selected to continue
 var MUTATION_RATE = 0.05;
 
@@ -46,31 +46,21 @@ Genetics.prototype = {
     this.population.sort(function(unit1, unit2) {
       return unit1.fitness < unit2.fitness;
     });
-
-    // uncomment this when makeBabyDino is implemented
-    // for(var i = this.selectionSize; i < this.populationSize; i++){ //makes baby dinos
-    //   this.population[i] = this.makeBabyDino(this.getWinner(), this.getWinner());
-    // }
+    
+     for(var i = this.selectionSize; i < this.populationSize; i++){ //makes baby dinos
+       var baby = this.makeBabyDino(this.getWinner().toJSON(), this.getWinner().toJSON());
+       this.population[i] = synaptic.Network.fromJSON(baby);
+     }
   },
 
   //makes a baby dino given a mommy and a daddy dino and mutates it
   makeBabyDino : function(mommy, daddy) {
     var babyDino = mommy;
-    //randomly selects bias form either its mom or dad
-    for(var i = 0; i < babyDino.neurons.length; i++){
-      if(Math.random() > 0.5){
-        babyDino.neurons[i]['bias'] = daddy.neurons[i]; //do I need the ['bias']??
-      }
-    }
-
-    /*
-    do we want to do this in 1 loop and get the bias and weight from the same parent??
-    */
-
+console.log(babyDino.neurons.length);
     //randomly selects weights form each parent
     for(var i = 0; i < babyDino.neurons.length; i++){
       if(Math.random() > 0.5){
-        babyDino.neurons[i]['weight'] = daddy.neurons[i]; //do I need the ['bias']??
+        babyDino.neurons[i] = daddy.neurons[i];
       }
     }
     return this.mutate(babyDino);
@@ -79,19 +69,23 @@ Genetics.prototype = {
   //mutates a newly made baby dinos
   mutate : function(babyDino) {
     //randomly mutates bias
+    console.log(babyDino.neurons.length);
     for(var i = 0; i < babyDino.neurons.length; i++) {
       if(Math.random() < this.mutationRate){
+
         var mutateFactor = 1 + ((Math.random() - 0.5) * 3 + (Math.random() - 0.5)); //change formula?
+	console.log(babyDino.neurons[i]['bias'] + " " + babyDino.neurons[i]['bias'] * mutateFactor);
         babyDino.neurons[i]['bias'] *= mutateFactor;
       }
     }
     //randomly mutates weight
-    for(var i = 0; i < babyDino.neurons.length; i++) {
+    for(var i = 0; i < babyDino.connections.length; i++) {
       if(Math.random() < this.mutationRate){
         var mutateFactor = 1 + ((Math.random() - 0.5) * 3 + (Math.random() - 0.5)); //change formula?
-        babyDino.neurons[i]['weight'] *= mutateFactor;
+        babyDino.connections[i]['weight'] *= mutateFactor;
       }
     }
+    return babyDino;
   },
 
   activate : function(index, obstacle) {
