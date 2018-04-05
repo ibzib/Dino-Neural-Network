@@ -94,6 +94,7 @@ var AUTO_RESTART = true;
 var RESTART_DELAY = 3000; // ms before restarting when AUTO_RESTART is set
 var SHOW_DISTANCE_METER = false;
 var SHOW_INFO = true;
+var PAUSE_ON_TAB_OFF = false;
 
 var tRexBoxColors = [
   'blue',
@@ -545,14 +546,16 @@ Runner.prototype = {
     this.playCount++;
 
     // Handle tabbing off the page. Pause the current game.
-    document.addEventListener(Runner.events.VISIBILITY,
-          this.onVisibilityChange.bind(this));
+    if (PAUSE_ON_TAB_OFF) {
+      document.addEventListener(Runner.events.VISIBILITY,
+            this.onVisibilityChange.bind(this));
 
-    window.addEventListener(Runner.events.BLUR,
-          this.onVisibilityChange.bind(this));
+      window.addEventListener(Runner.events.BLUR,
+            this.onVisibilityChange.bind(this));
 
-    window.addEventListener(Runner.events.FOCUS,
-          this.onVisibilityChange.bind(this));
+      window.addEventListener(Runner.events.FOCUS,
+            this.onVisibilityChange.bind(this));      
+    }
   },
 
   clearCanvas: function() {

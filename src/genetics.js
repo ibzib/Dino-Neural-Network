@@ -46,7 +46,7 @@ Genetics.prototype = {
     this.population.sort(function(unit1, unit2) {
       return unit1.fitness < unit2.fitness;
     });
-    
+
      for(var i = this.selectionSize; i < this.populationSize; i++){ //makes baby dinos
        var baby = this.makeBabyDino(this.getWinner().toJSON(), this.getWinner().toJSON());
        this.population[i] = synaptic.Network.fromJSON(baby);
@@ -111,4 +111,3 @@ console.log(babyDino.neurons.length);
   }
 
 }
-
