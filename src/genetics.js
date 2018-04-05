@@ -48,14 +48,14 @@ Genetics.prototype = {
     });
 
     // uncomment this when makeBabyDino is implemented
-    // for(var i = this.selectionSize; i < this.populationSize; i++){ //makes baby dinos
-    //   this.population[i] = this.makeBabyDino(this.getWinner(), this.getWinner());
-    // }
+    for(var i = this.selectionSize; i < this.populationSize; i++){ //makes baby dinos
+      this.population[i] = this.makeBabyDino(this.getWinner(), this.getWinner());
+    }
   },
 
   //makes a baby dino given a mommy and a daddy dino and mutates it
   makeBabyDino : function(mommy, daddy) {
-    var babyDino = mommy;
+    var babyDino = mommy.clone();
     //randomly selects bias form either its mom or dad
     for(var i = 0; i < babyDino.neurons.length; i++){
       if(Math.random() > 0.5){
@@ -92,6 +92,7 @@ Genetics.prototype = {
         babyDino.neurons[i]['weight'] *= mutateFactor;
       }
     }
+    return babyDino;
   },
 
   activate : function(index, obstacle) {
