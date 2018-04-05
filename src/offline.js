@@ -90,7 +90,7 @@ var FPS = 60;
 var AUTO_RESTART = true;
 var RESTART_DELAY = 3000; // ms before restarting when AUTO_RESTART is set
 var SHOW_DISTANCE_METER = false;
-var SHOW_FITNESS_SCORES = true;
+var SHOW_INFO = true;
 
 var tRexBoxColors = [
   'blue',
@@ -627,7 +627,11 @@ Runner.prototype = {
         this.playSound(this.soundFx.SCORE);
       }
 
-      if (SHOW_FITNESS_SCORES) {
+      if (SHOW_INFO) {
+        // display generation #
+        this.canvasCtx.fillStyle = 'lightgray';
+        this.canvasCtx.fillText("gen " + this.playCount, 10, 10);
+        // display fitness scores
         this.tRexes.forEach(function(tRex, index) {
           if (tRex.status == Trex.status.CRASHED) {
             this.canvasCtx.fillStyle = 'lightgray';
