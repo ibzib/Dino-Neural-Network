@@ -32,6 +32,7 @@ function Runner(outerContainerId, opt_config) {
 
   this.distanceMeter = null;
   this.distanceRan = 0;
+  this.maxDistanceRan = 0;
 
   this.highestScore = 0;
 
@@ -87,6 +88,8 @@ var DEFAULT_WIDTH = 600;
  */
 var FPS = 60;
 
+var HAS_OBSTACLES = true;
+var USE_NN = true;
 var AUTO_RESTART = true;
 var RESTART_DELAY = 3000; // ms before restarting when AUTO_RESTART is set
 var SHOW_DISTANCE_METER = false;
@@ -572,16 +575,35 @@ Runner.prototype = {
 
       this.tRexes.forEach(function (tRex, index) {
         if (tRex.status != Trex.status.CRASHED) {
+          if (USE_NN) {
+            var [jump, duck] = this.genetics.activate(index, this.horizon.obstacles[0]);
+            if (jump > 0.5 || duck > 0.5) {
+              var up = jump > duck;
+              if (up) {
+                if (!tRex.jumping && !tRex.ducking) {
+                  tRex.startJump(this.currentSpeed);
+                }
+              } else {
+                if (tRex.jumping) {
+                  tRex.setSpeedDrop();
+                } else if (!tRex.jumping && !tRex.ducking) {
+                  tRex.setDuck(true);
+                }
+              }
+            }
+          }
           if (tRex.jumping) {
             tRex.updateJump(deltaTime);
-          } else if (this.genetics.activate(index, this.horizon.obstacles[0])) {
-            tRex.startJump(this.currentSpeed);
           }
         }
       }, this);
 
       this.runningTime += deltaTime;
-      var hasObstacles = this.runningTime > this.config.CLEAR_TIME;
+      if (HAS_OBSTACLES) {
+        var hasObstacles = this.runningTime > this.config.CLEAR_TIME;
+      } else {
+        var hasObstacles = false;
+      }
 
       if (this.tRexes[0].jumpCount == 1 && !this.playingIntro) {
         this.playIntro();
@@ -606,6 +628,9 @@ Runner.prototype = {
             this.collisionCount++;
           } else {
             tRex.perceptron.fitness = this.distanceRan;
+            if (this.distanceRan > this.maxDistanceRan) {
+              this.maxDistanceRan = this.distanceRan;
+            }
           }
         }
       }, this);
@@ -630,7 +655,10 @@ Runner.prototype = {
       if (SHOW_INFO) {
         // display generation #
         this.canvasCtx.fillStyle = 'lightgray';
-        this.canvasCtx.fillText("gen " + this.playCount, 10, 10);
+        var info = "gen " + this.playCount + 
+          " (n = " + POPULATION_SIZE + ")" + 
+          " record: " + this.maxDistanceRan.toFixed();
+        this.canvasCtx.fillText(info, this.dimensions.WIDTH/2-this.canvasCtx.measureText(info).width/2, 8);
         // display fitness scores
         this.tRexes.forEach(function(tRex, index) {
           if (tRex.status == Trex.status.CRASHED) {
@@ -760,12 +788,12 @@ Runner.prototype = {
         }
       } else if (this.playing && Runner.keycodes.DUCK[e.keyCode]) {
         e.preventDefault();
-        if (this.tRex.jumping) {
+        if (this.tRexes[0].jumping) {
           // Speed drop, activated only when jump key is not pressed.
-          this.tRex.setSpeedDrop();
-        } else if (!this.tRex.jumping && !this.tRex.ducking) {
+          this.tRexes[0].setSpeedDrop();
+        } else if (!this.tRexes[0].jumping && !this.tRexes[0].ducking) {
           // Duck.
-          this.tRex.setDuck(true);
+          this.tRexes[0].setDuck(true);
         }
       }
     } else if (this.crashed && e.type == Runner.events.TOUCHSTART &&

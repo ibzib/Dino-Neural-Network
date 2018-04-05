@@ -4,14 +4,14 @@ Rocco Manzo - Rmanzo
 */
 
 // parameters for genetic algo
-var POPULATION_SIZE = 20; // number of test subjects per generation
+var POPULATION_SIZE = 15; // number of test subjects per generation
 var SELECTION_SIZE = 5; // number of test subjects selected to continue
 var MUTATION_RATE = 0.05;
 
 // neural network: # of neurons per layer
 var N_INPUTS = 4;
 var N_HIDDEN = 6;
-var N_OUTPUTS = 1;
+var N_OUTPUTS = 2;
 
 // for debugging -- just make dinos jump randomly
 var RANDOM_JUMP = false;
@@ -96,7 +96,12 @@ Genetics.prototype = {
 
   activate : function(index, obstacle) {
     if (!obstacle) {
-      return 0; // if no obstacle exists, don't jump
+      // if no obstacle exists, do nothing
+      var outputs = [];
+      for (var i = 0; i < N_OUTPUTS; i++) {
+        outputs.push(0);
+      }
+      return outputs;
     }
     if (RANDOM_JUMP) {
       return Math.random() > 0.5;
@@ -108,7 +113,7 @@ Genetics.prototype = {
     inputs.push(obstacle.typeConfig.width * obstacle.size);
     inputs.push(obstacle.typeConfig.height);
     var outputs = this.population[index].activate(inputs);
-    return outputs[0] > 0.5;
+    return outputs;
   }
 
 }
