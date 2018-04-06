@@ -41,7 +41,8 @@ Genetics.prototype = {
     return this.population[Math.floor(Math.random()*this.selectionSize)];
   },
 
-  //evolves the population
+  // evolves the population
+  // returns false if population went extinct
   evolvePopulation : function() {
 
     this.population.sort(function(unit1, unit2) {
@@ -50,13 +51,14 @@ Genetics.prototype = {
 
     if (this.population[0].fitness < EXTINCTION_THRESHOLD) {
       this.init();
-      return;
+      return false;
     }
 
     for(var i = this.selectionSize; i < this.populationSize; i++){ //makes baby dinos
      var baby = this.makeBabyDino(this.getWinner().toJSON(), this.getWinner().toJSON());
      this.population[i] = synaptic.Network.fromJSON(baby);
     }
+    return true;
   },
 
   //makes a baby dino given a mommy and a daddy dino and mutates it
