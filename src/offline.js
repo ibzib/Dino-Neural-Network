@@ -52,6 +52,7 @@ function Runner(outerContainerId, opt_config) {
   this.resizeTimerId_ = null;
 
   this.playCount = 0;
+  this.lastExtinction = 0;
 
   // Sound FX.
   this.audioBuffer = null;
@@ -554,7 +555,7 @@ Runner.prototype = {
             this.onVisibilityChange.bind(this));
 
       window.addEventListener(Runner.events.FOCUS,
-            this.onVisibilityChange.bind(this));      
+            this.onVisibilityChange.bind(this));
     }
   },
 
@@ -644,7 +645,7 @@ Runner.prototype = {
         if (this.currentSpeed < this.config.MAX_SPEED) {
           this.currentSpeed += this.config.ACCELERATION;
         }
-      } else {        
+      } else {
         this.gameOver();
       }
 
@@ -658,8 +659,8 @@ Runner.prototype = {
       if (SHOW_INFO) {
         // display generation #
         this.canvasCtx.fillStyle = 'lightgray';
-        var info = "gen " + this.playCount + 
-          " (n = " + POPULATION_SIZE + ")" + 
+        var info = "gen " + this.playCount +
+          " (" + (this.playCount - this.lastExtinction) + ")" +
           " record: " + this.maxDistanceRan.toFixed();
         this.canvasCtx.fillText(info, this.dimensions.WIDTH/2-this.canvasCtx.measureText(info).width/2, 8);
         // display fitness scores
@@ -937,7 +938,9 @@ Runner.prototype = {
       this.distanceMeter.reset(this.highestScore);
       this.horizon.reset();
 
-      this.genetics.evolvePopulation();
+      if (!this.genetics.evolvePopulation()) {
+        this.lastExtinction = this.playCount-1;
+      }
       this.spawnTrexes();
       this.tRexes.forEach(function (tRex) {
         tRex.reset();
