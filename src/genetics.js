@@ -48,6 +48,11 @@ Genetics.prototype = {
       return unit2.fitness - unit1.fitness;
     });
 
+    if (this.population[0].fitness < EXTINCTION_THRESHOLD) {
+      this.init();
+      return;
+    }
+
     for(var i = this.selectionSize; i < this.populationSize; i++){ //makes baby dinos
      var baby = this.makeBabyDino(this.getWinner().toJSON(), this.getWinner().toJSON());
      this.population[i] = synaptic.Network.fromJSON(baby);

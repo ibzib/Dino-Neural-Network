@@ -9,3 +9,6 @@
 - [X] record fitness of each dino
 - [X] figure out why dinos start further back after restarting
 - [X] display individual dino scores
+- [X] destroy all dinos if they all fall below threshold
+- [ ] weight likelihood of selecting a dino based on its fitness
+- [ ] get dinos to duck under pterodactyl
