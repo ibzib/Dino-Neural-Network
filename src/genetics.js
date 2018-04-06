@@ -6,7 +6,8 @@ Rocco Manzo - Rmanzo
 // parameters for genetic algo
 var POPULATION_SIZE = 20; // number of test subjects per generation
 var SELECTION_SIZE = 5; // number of test subjects selected to continue
-var MUTATION_RATE = 0.05;
+var MUTATION_RATE = 0.08;
+var EXTINCTION_THRESHOLD = 3000;
 
 // neural network: # of neurons per layer
 var N_INPUTS = 4;
@@ -44,19 +45,18 @@ Genetics.prototype = {
   evolvePopulation : function() {
 
     this.population.sort(function(unit1, unit2) {
-      return unit1.fitness < unit2.fitness;
+      return unit2.fitness - unit1.fitness;
     });
 
-     for(var i = this.selectionSize; i < this.populationSize; i++){ //makes baby dinos
-       var baby = this.makeBabyDino(this.getWinner().toJSON(), this.getWinner().toJSON());
-       this.population[i] = synaptic.Network.fromJSON(baby);
-     }
+    for(var i = this.selectionSize; i < this.populationSize; i++){ //makes baby dinos
+     var baby = this.makeBabyDino(this.getWinner().toJSON(), this.getWinner().toJSON());
+     this.population[i] = synaptic.Network.fromJSON(baby);
+    }
   },
 
   //makes a baby dino given a mommy and a daddy dino and mutates it
   makeBabyDino : function(mommy, daddy) {
     var babyDino = mommy;
-console.log(babyDino.neurons.length);
     //randomly selects weights form each parent
     for(var i = 0; i < babyDino.neurons.length; i++){
       if(Math.random() > 0.5){
@@ -69,12 +69,11 @@ console.log(babyDino.neurons.length);
   //mutates a newly made baby dinos
   mutate : function(babyDino) {
     //randomly mutates bias
-    console.log(babyDino.neurons.length);
     for(var i = 0; i < babyDino.neurons.length; i++) {
       if(Math.random() < this.mutationRate){
 
         var mutateFactor = 1 + ((Math.random() - 0.5) * 3 + (Math.random() - 0.5)); //change formula?
-	console.log(babyDino.neurons[i]['bias'] + " " + babyDino.neurons[i]['bias'] * mutateFactor);
+	      // console.log(babyDino.neurons[i]['bias'] + " " + babyDino.neurons[i]['bias'] * mutateFactor);
         babyDino.neurons[i]['bias'] *= mutateFactor;
       }
     }
