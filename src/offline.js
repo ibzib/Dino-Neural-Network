@@ -584,8 +584,15 @@ Runner.prototype = {
             if (jump > 0.5 || duck > 0.5) {
               var up = jump > duck;
               if (up) {
-                if (!tRex.jumping && !tRex.ducking) {
-                  tRex.startJump(this.currentSpeed);
+                // if (!tRex.jumping && !tRex.ducking) {
+                //   tRex.startJump(this.currentSpeed);
+                // }
+                if (!tRex.jumping) {
+                  if (tRex.ducking) {
+                    tRex.setDuck(false);
+                  } else {
+                    tRex.startJump(this.currentSpeed);
+                  }
                 }
               } else {
                 if (tRex.jumping) {
@@ -1619,7 +1626,7 @@ Obstacle.types = [
     yPos: [ 100, 75, 50 ], // Variable height.
     yPosMobile: [ 100, 50 ], // Variable height mobile.
     multipleSpeed: 999,
-    minSpeed: 1.5,
+    minSpeed: 0,
     minGap: 150,
     collisionBoxes: [
       new CollisionBox(15, 15, 16, 5),
