@@ -1619,7 +1619,7 @@ Obstacle.types = [
     yPos: [ 100, 75, 50 ], // Variable height.
     yPosMobile: [ 100, 50 ], // Variable height mobile.
     multipleSpeed: 999,
-    minSpeed: 8.5,
+    minSpeed: 1.5,
     minGap: 150,
     collisionBoxes: [
       new CollisionBox(15, 15, 16, 5),
