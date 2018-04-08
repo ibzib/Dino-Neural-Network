@@ -38,6 +38,31 @@ Genetics.prototype = {
   },
 
   getWinner : function() {
+
+    //return this.population[Math.floor(Math.random()*this.selectionSize)];
+
+    var totalFitness = 0;
+    var scores = [];
+    var selection = Math.random();
+
+    //finds the total fitness of the top Dinos
+    for(var i = 0; i < this.selectionSize; i++){
+      totalFitness += this.population[i].fitness;
+    }
+
+    //assigns everybody a score (the last one should be 1)
+    for(var i = 0; i < this.selectionSize; i++){
+      scores.push(this.population[i].fitness/totalFitness);
+      for(var j = i; j >= 0; j--){
+        scores[i] += scores[j];
+      }
+    }
+
+    for(var i = 0; i < this.selectionSize; i++){
+      if(selection <= scores[i]){
+        return this.population[i];
+      }
+    }
     return this.population[Math.floor(Math.random()*this.selectionSize)];
   },
 
@@ -55,7 +80,12 @@ Genetics.prototype = {
     }
 
     for(var i = this.selectionSize; i < this.populationSize; i++){ //makes baby dinos
-     var baby = this.makeBabyDino(this.getWinner().toJSON(), this.getWinner().toJSON());
+      var mommy = this.getWinner();
+      var daddy = this.getWinner();
+      while(mommy == daddy){
+        daddy = this.getWinner();
+      }
+     var baby = this.makeBabyDino(mommy.toJSON(), daddy.toJSON());
      this.population[i] = synaptic.Network.fromJSON(baby);
     }
     return true;
