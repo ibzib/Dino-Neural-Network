@@ -32,7 +32,8 @@ function Runner(outerContainerId, opt_config) {
 
   this.distanceMeter = null;
   this.distanceRan = 0;
-  this.maxDistanceRan = 0;
+  this.allTimeMaxDistanceRan = 0;
+  this.eraMaxDistanceRan = 0;
 
   this.highestScore = 0;
 
@@ -579,14 +580,14 @@ Runner.prototype = {
 
       this.tRexes.forEach(function (tRex, index) {
         if (tRex.status != Trex.status.CRASHED) {
+          if (tRex.jumping) {
+            tRex.updateJump(deltaTime);
+          }
           if (USE_NN) {
             var [jump, duck] = this.genetics.activate(index, this.horizon.obstacles[0]);
             if (jump > 0.5 || duck > 0.5) {
               var up = jump > duck;
               if (up) {
-                // if (!tRex.jumping && !tRex.ducking) {
-                //   tRex.startJump(this.currentSpeed);
-                // }
                 if (!tRex.jumping) {
                   if (tRex.ducking) {
                     tRex.setDuck(false);
@@ -602,9 +603,6 @@ Runner.prototype = {
                 }
               }
             }
-          }
-          if (tRex.jumping) {
-            tRex.updateJump(deltaTime);
           }
         }
       }, this);
@@ -639,8 +637,11 @@ Runner.prototype = {
             this.collisionCount++;
           } else {
             tRex.perceptron.fitness = this.distanceRan;
-            if (this.distanceRan > this.maxDistanceRan) {
-              this.maxDistanceRan = this.distanceRan;
+            if (this.distanceRan > this.allTimeMaxDistanceRan) {
+              this.allTimeMaxDistanceRan = this.distanceRan;
+            }
+            if (this.distanceRan > this.eraMaxDistanceRan) {
+              this.eraMaxDistanceRan = this.distanceRan;
             }
           }
         }
@@ -668,7 +669,8 @@ Runner.prototype = {
         this.canvasCtx.fillStyle = 'lightgray';
         var info = "gen " + this.playCount +
           " (" + (this.playCount - this.lastExtinction) + ")" +
-          " record: " + this.maxDistanceRan.toFixed();
+          " record: " + this.allTimeMaxDistanceRan.toFixed() + 
+          " (" + this.eraMaxDistanceRan.toFixed() + ")";
         this.canvasCtx.fillText(info, this.dimensions.WIDTH/2-this.canvasCtx.measureText(info).width/2, 8);
         // display fitness scores
         this.tRexes.forEach(function(tRex, index) {
@@ -947,6 +949,7 @@ Runner.prototype = {
 
       if (!this.genetics.evolvePopulation()) {
         this.lastExtinction = this.playCount-1;
+        this.eraMaxDistanceRan = 0;
       }
       this.spawnTrexes();
       this.tRexes.forEach(function (tRex) {
