@@ -13,7 +13,7 @@
 
 ### ideas for improvement
 - [ ] implement crossover??
-- [ ] weight likelihood of selecting a dino based on its fitness
-- [ ] use type of obstacle as an input to NN
+- [X] weight likelihood of selecting a dino based on its fitness
+- ~~use type of obstacle as an input to NN~~
 - [ ] experiment with different NN structures
 - ~~try using one output node vs 2~~
