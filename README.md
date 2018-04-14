@@ -17,3 +17,4 @@
 - ~~use type of obstacle as an input to NN~~
 - [ ] experiment with different NN structures
 - ~~try using one output node vs 2~~
+- [ ] decide on a performance evaluation metric
