@@ -100,7 +100,8 @@ var HAS_OBSTACLES = true;
 var USE_NN = true;
 var AUTO_RESTART = true;
 var RESTART_DELAY = 3000; // ms before restarting when AUTO_RESTART is set
-var SHOW_DISTANCE_METER = false;
+var SHOW_DISTANCE_METER = true;
+var OUTPUT_SENSITIVITY = 0.05;
 var SHOW_INFO = true;
 var PAUSE_ON_TAB_OFF = false;
 
@@ -612,24 +613,20 @@ Runner.prototype = {
             tRex.updateJump(deltaTime);
           }
           if (USE_NN) {
-            var [jump, duck] =
-              this.genetics.activate(index, this.horizon.obstacles[0], this.currentSpeed);
-            if (jump > 0.5 || duck > 0.5) {
-              var up = jump > duck;
-              if (up) {
-                if (!tRex.jumping) {
-                  if (tRex.ducking) {
-                    tRex.setDuck(false);
-                  } else {
-                    tRex.startJump(this.currentSpeed);
-                  }
+            var output = this.genetics.activate(index, this.horizon.obstacles[0], this.currentSpeed);
+            if (output > 0.5+OUTPUT_SENSITIVITY) {
+              if (!tRex.jumping) {
+                if (tRex.ducking) {
+                  tRex.setDuck(false);
+                } else {
+                  tRex.startJump(this.currentSpeed);
                 }
-              } else {
-                if (tRex.jumping) {
-                  tRex.setSpeedDrop();
-                } else if (!tRex.jumping && !tRex.ducking) {
-                  tRex.setDuck(true);
-                }
+              }
+            } else if (output < 0.5-OUTPUT_SENSITIVITY) {
+              if (tRex.jumping) {
+                tRex.setSpeedDrop();
+              } else if (!tRex.jumping && !tRex.ducking) {
+                tRex.setDuck(true);
               }
             }
           }
@@ -1674,7 +1671,7 @@ Obstacle.types = [
     yPos: [ 100, 75, 50 ], // Variable height.
     yPosMobile: [ 100, 50 ], // Variable height mobile.
     multipleSpeed: 999,
-    minSpeed: 0,
+    minSpeed: 8.5,
     minGap: 150,
     collisionBoxes: [
       new CollisionBox(15, 15, 16, 5),
