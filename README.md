@@ -10,6 +10,9 @@
 - [X] figure out why dinos start further back after restarting
 - [X] display individual dino scores
 - [X] destroy all dinos if they all fall below threshold
+- [ ] add input node for speed
+- [X] graph performance
+- [ ] add complement of child
 
 ### ideas for improvement
 - [ ] implement crossover??
