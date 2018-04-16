@@ -10,8 +10,8 @@ var MUTATION_RATE = 0.08;
 var EXTINCTION_THRESHOLD = 3000;
 
 // neural network: # of neurons per layer
-var N_INPUTS = 4;
-var N_HIDDEN = 6;
+var N_INPUTS = 5;
+var N_HIDDEN = 10;
 var N_OUTPUTS = 2;
 
 // for debugging -- just make dinos jump randomly
@@ -124,7 +124,7 @@ Genetics.prototype = {
     return babyDino;
   },
 
-  activate : function(index, obstacle) {
+  activate : function(index, obstacle, speed) {
     if (!obstacle) {
       // if no obstacle exists, do nothing
       var outputs = [];
@@ -142,6 +142,7 @@ Genetics.prototype = {
     inputs.push(obstacle.yPos);
     inputs.push(obstacle.typeConfig.width * obstacle.size);
     inputs.push(obstacle.typeConfig.height);
+    inputs.push(speed);
     var outputs = this.population[index].activate(inputs);
     return outputs;
   }

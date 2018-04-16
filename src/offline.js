@@ -612,7 +612,8 @@ Runner.prototype = {
             tRex.updateJump(deltaTime);
           }
           if (USE_NN) {
-            var [jump, duck] = this.genetics.activate(index, this.horizon.obstacles[0]);
+            var [jump, duck] =
+              this.genetics.activate(index, this.horizon.obstacles[0], this.currentSpeed);
             if (jump > 0.5 || duck > 0.5) {
               var up = jump > duck;
               if (up) {
