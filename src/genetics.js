@@ -74,21 +74,22 @@ Genetics.prototype = {
       return unit2.fitness - unit1.fitness;
     });
 
-    if (this.population[0].fitness < EXTINCTION_THRESHOLD) {
+    var maxFitness = this.population[0].fitness;
+    if (maxFitness < EXTINCTION_THRESHOLD) {
       this.init();
-      return false;
+    } else {
+      for(var i = this.selectionSize; i < this.populationSize; i++){ //makes baby dinos
+        var mommy = this.getWinner();
+        var daddy = this.getWinner();
+        while(mommy == daddy){ // FIX ME!!!
+          daddy = this.getWinner();
+        }
+        var baby = this.makeBabyDino(mommy.toJSON(), daddy.toJSON());
+        this.population[i] = synaptic.Network.fromJSON(baby);
+      }
     }
 
-    for(var i = this.selectionSize; i < this.populationSize; i++){ //makes baby dinos
-      var mommy = this.getWinner();
-      var daddy = this.getWinner();
-      while(mommy == daddy){
-        daddy = this.getWinner();
-      }
-     var baby = this.makeBabyDino(mommy.toJSON(), daddy.toJSON());
-     this.population[i] = synaptic.Network.fromJSON(baby);
-    }
-    return true;
+    return maxFitness;
   },
 
   //makes a baby dino given a mommy and a daddy dino and mutates it

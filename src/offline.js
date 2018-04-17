@@ -34,18 +34,15 @@ function Runner(outerContainerId, opt_config) {
   this.distanceRan = 0;
   this.allTimeMaxDistanceRan = 0;
   this.eraMaxDistanceRan = 0;
-  this.minGenerations = 3;
-  this.eraHighScores = [];
+  this.eraCount = 1;
+  this.recordMaxFitness = 0;
 
   this.highestScore = 0;
-  this.eraCount = 0;
 
   this.time = 0;
   this.runningTime = 0;
   this.msPerFrame = 1000 / FPS;
   this.currentSpeed = this.config.SPEED;
-
-  this.link = null;
 
   this.obstacles = [];
 
@@ -100,7 +97,7 @@ var HAS_OBSTACLES = true;
 var USE_NN = true;
 var AUTO_RESTART = true;
 var RESTART_DELAY = 3000; // ms before restarting when AUTO_RESTART is set
-var SHOW_DISTANCE_METER = true;
+var SHOW_DISTANCE_METER = false;
 var OUTPUT_SENSITIVITY = 0.05;
 var SHOW_INFO = true;
 var PAUSE_ON_TAB_OFF = false;
@@ -266,28 +263,6 @@ Runner.prototype = {
   isDisabled: function() {
     // return loadTimeData && loadTimeData.valueExists('disabledEasterEgg');
     return false;
-  },
-
-  forceClick: function() {
-    this.link.dispatchEvent(new MouseEvent('click'));
-  },
-
-  updateFile: function(text, number) {
-    var data = new Blob([text], {type: 'text/plain'});
-
-    // If we are replacing a previously generated file we need to
-    // manually revoke the object URL to avoid memory leaks.
-
-    var textFile = window.URL.createObjectURL(data);
-    if (!this.link) {
-      this.link = document.createElement('a');
-      this.link.setAttribute('download', 'score'+number+'.csv');
-      this.link.href = textFile;
-      document.body.appendChild(this.link);
-    }
-
-    // wait for the link to be added to the document
-    window.requestAnimationFrame(this.forceClick.bind(this));
   },
 
   /**
@@ -928,12 +903,6 @@ Runner.prototype = {
       this.distanceMeter.setHighScore(this.highestScore);
     }
 
-    this.eraHighScores.push(0);
-    this.tRexes.forEach(function (tRex, index) {
-      this.eraHighScores[this.eraHighScores.length-1] =
-       Math.max(this.eraHighScores[this.eraHighScores.length-1], tRex.perceptron.fitness);
-    }, this);
-
     // Reset the time clock.
     this.time = getTimeStamp();
 
@@ -966,7 +935,6 @@ Runner.prototype = {
 
   restart: function() {
     if (!this.raqId) {
-      this.playCount++;
       this.runningTime = 0;
       this.playing = true;
       this.paused = false;
@@ -978,21 +946,20 @@ Runner.prototype = {
       this.clearCanvas();
       this.distanceMeter.reset(this.highestScore);
       this.horizon.reset();
-
-      if (!this.genetics.evolvePopulation()) {
-        if (this.eraHighScores.length > this.minGenerations) {
-          // graph data
-          var text = '';
-          for (var i = 0; i < this.eraHighScores.length; i++) {
-            text += this.eraHighScores[i] + ',';
-          }
-          this.updateFile(text, this.eraCount);
-        }
-        this.eraCount++;
-        this.lastExtinction = this.playCount-1;
-        this.eraMaxDistanceRan = 0;
-        this.eraHighScores = [];
+      
+      var maxFitness = this.genetics.evolvePopulation();
+      console.log(this.eraCount + ' ' + this.playCount + ' ' + maxFitness);
+      if (maxFitness > this.recordMaxFitness) {
+        this.recordMaxFitness = maxFitness;
+        console.log('NEW RECORD');
       }
+      if (maxFitness < EXTINCTION_THRESHOLD) {
+        console.log('EXTINCTION');
+        this.lastExtinction = this.playCount;
+        this.eraMaxDistanceRan = 0;
+        this.eraCount++;
+      }
+      this.playCount++;
       this.spawnTrexes();
       this.tRexes.forEach(function (tRex) {
         tRex.reset();
