@@ -52,7 +52,7 @@ Genetics.prototype = {
 
     //assigns everybody a score (the last one should be 1)
     for(var i = 0; i < this.selectionSize; i++){
-      scores.push(this.population[i].fitness/totalFitness);
+      scores.push(Math.sqrt(this.population[i].fitness/totalFitness));
       for(var j = i; j >= 0; j--){
         scores[i] += scores[j];
       }
@@ -81,7 +81,7 @@ Genetics.prototype = {
       for(var i = this.selectionSize; i < this.populationSize; i++){ //makes baby dinos
         var mommy = this.getWinner();
         var daddy = this.getWinner();
-        while(mommy == daddy){ // FIX ME!!!
+        for(var i = 0; i < 1000 && mommy == daddy; i++){
           daddy = this.getWinner();
         }
         var baby = this.makeBabyDino(mommy.toJSON(), daddy.toJSON());
