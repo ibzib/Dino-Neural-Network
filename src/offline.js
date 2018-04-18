@@ -97,7 +97,7 @@ var HAS_OBSTACLES = true;
 var USE_NN = true;
 var AUTO_RESTART = true;
 var RESTART_DELAY = 3000; // ms before restarting when AUTO_RESTART is set
-var SHOW_DISTANCE_METER = false;
+var SHOW_DISTANCE_METER = true;
 var OUTPUT_SENSITIVITY = 0.05;
 var SHOW_INFO = true;
 var PAUSE_ON_TAB_OFF = false;
@@ -668,22 +668,9 @@ Runner.prototype = {
       if (SHOW_INFO) {
         // display generation #
         this.canvasCtx.fillStyle = 'lightgray';
-        var info = "gen " + this.playCount +
-          " (" + (this.playCount - this.lastExtinction) + ")" +
-          " record: " + this.distanceMeter.getActualDistance(this.allTimeMaxDistanceRan).toFixed() +
-          " (" + this.distanceMeter.getActualDistance(this.eraMaxDistanceRan).toFixed() + ")";
+        var info = "gen " + this.playCount;
+        info += " dinos: " + (POPULATION_SIZE-this.collisionCount) + "/" + POPULATION_SIZE;
         this.canvasCtx.fillText(info, this.dimensions.WIDTH/2-this.canvasCtx.measureText(info).width/2, 8);
-        // display fitness scores
-        this.tRexes.forEach(function(tRex, index) {
-          if (tRex.status == Trex.status.CRASHED) {
-            this.canvasCtx.fillStyle = 'lightgray';
-          } else {
-            this.canvasCtx.fillStyle = tRex.color;
-          }
-          var x = this.dimensions.WIDTH-45;
-          var y = (index+1)*(this.dimensions.HEIGHT / (POPULATION_SIZE+1));
-          this.canvasCtx.fillText(this.distanceMeter.getActualDistance(tRex.perceptron.fitness).toFixed(), x, y);
-        }, this);
       }
 
       // Night mode.
@@ -948,7 +935,11 @@ Runner.prototype = {
       this.horizon.reset();
       
       var maxFitness = this.genetics.evolvePopulation();
-      console.log(this.eraCount + ' ' + this.playCount + ' ' + maxFitness);
+      var message = '';
+      message += 'era number: ' + this.eraCount;
+      message += ' play count: ' + this.playCount;
+      message += ' max score: ' + this.distanceMeter.getActualDistance(maxFitness);
+      console.log(message);
       if (maxFitness > this.recordMaxFitness) {
         this.recordMaxFitness = maxFitness;
         console.log('NEW RECORD');
