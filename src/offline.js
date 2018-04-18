@@ -670,8 +670,8 @@ Runner.prototype = {
         this.canvasCtx.fillStyle = 'lightgray';
         var info = "gen " + this.playCount +
           " (" + (this.playCount - this.lastExtinction) + ")" +
-          " record: " + this.allTimeMaxDistanceRan.toFixed() +
-          " (" + this.eraMaxDistanceRan.toFixed() + ")";
+          " record: " + this.distanceMeter.getActualDistance(this.allTimeMaxDistanceRan).toFixed() +
+          " (" + this.distanceMeter.getActualDistance(this.eraMaxDistanceRan).toFixed() + ")";
         this.canvasCtx.fillText(info, this.dimensions.WIDTH/2-this.canvasCtx.measureText(info).width/2, 8);
         // display fitness scores
         this.tRexes.forEach(function(tRex, index) {
@@ -682,7 +682,7 @@ Runner.prototype = {
           }
           var x = this.dimensions.WIDTH-45;
           var y = (index+1)*(this.dimensions.HEIGHT / (POPULATION_SIZE+1));
-          this.canvasCtx.fillText(tRex.perceptron.fitness.toFixed(), x, y);
+          this.canvasCtx.fillText(this.distanceMeter.getActualDistance(tRex.perceptron.fitness).toFixed(), x, y);
         }, this);
       }
 
