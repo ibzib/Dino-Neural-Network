@@ -81,7 +81,7 @@ Genetics.prototype = {
       for(var i = this.selectionSize; i < this.populationSize; i++){ //makes baby dinos
         var mommy = this.getWinner();
         var daddy = this.getWinner();
-        for(var i = 0; i < 1000 && mommy == daddy; i++){
+        for(var j = 0; j < 1000 && mommy == daddy; j++){
           daddy = this.getWinner();
         }
         var baby = this.makeBabyDino(mommy.toJSON(), daddy.toJSON());
