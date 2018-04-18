@@ -5,8 +5,8 @@ Rocco Manzo - Rmanzo
 
 // parameters for genetic algo
 var POPULATION_SIZE = 50; // number of test subjects per generation
-var SELECTION_SIZE = 5; // number of test subjects selected to continue
-var MUTATION_RATE = 0.08;
+var SELECTION_SIZE = 10; // number of test subjects selected to continue
+var MUTATION_RATE = 0.12;
 var EXTINCTION_THRESHOLD = 3000;
 
 // neural network: # of neurons per layer
