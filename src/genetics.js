@@ -10,7 +10,7 @@ var MUTATION_RATE = 0.08;
 var EXTINCTION_THRESHOLD = 3000;
 
 // neural network: # of neurons per layer
-var N_INPUTS = 6;
+var N_INPUTS = 5;
 var N_HIDDEN = 10;
 var N_OUTPUTS = 1;
 
