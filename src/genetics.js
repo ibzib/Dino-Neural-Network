@@ -4,7 +4,7 @@ Rocco Manzo - Rmanzo
 */
 
 // parameters for genetic algo
-var POPULATION_SIZE = 20; // number of test subjects per generation
+var POPULATION_SIZE = 25; // number of test subjects per generation
 var SELECTION_SIZE = 5; // number of test subjects selected to continue
 var MUTATION_RATE = 0.08;
 var EXTINCTION_THRESHOLD = 3000;
