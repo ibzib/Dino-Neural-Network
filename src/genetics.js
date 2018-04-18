@@ -139,7 +139,6 @@ Genetics.prototype = {
     inputs.push(obstacle.yPos);
     inputs.push(obstacle.typeConfig.width * obstacle.size);
     inputs.push(obstacle.typeConfig.height);
-    inputs.push(obstacle.speedOffset);
     inputs.push(speed);
     var outputs = this.population[index].activate(inputs);
     return outputs;
