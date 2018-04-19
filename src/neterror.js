@@ -78,6 +78,28 @@ function instantiateRunner() {
   new Runner('.interstitial-wrapper');
 }
 
+function train() {
+  var cutoff = document.getElementById('trainingInput').value;
+  disableInput();
+  Runner().startTraining(cutoff);
+}
+
+function dontTrain() {
+  disableInput();
+  Runner().startRunning();
+}
+
+function disableInput() {
+  var trainBtn = document.getElementById('trainBtn');
+  trainBtn.disabled = true;
+  trainBtn.style.backgroundColor = 'gray';
+  var dontTrainBtn = document.getElementById('dontTrainBtn');
+  dontTrainBtn.disabled = true;
+  dontTrainBtn.style.backgroundColor = 'gray';
+  var trainingInput = document.getElementById('trainingInput');
+  trainingInput.disabled = true;
+}
+
 // Does a search using |baseSearchUrl| and the text in the search box.
 function search(baseSearchUrl) {
   var searchTextNode = document.getElementById('search-box');
@@ -160,6 +182,9 @@ primaryControlOnLeft = false;
 // </if>
 
 function onDocumentLoad() {
+  var trainingInfo = document.getElementById('training-info');
+  trainingInfo.value = 'Gen\tScore\n';
+
   var controlButtonDiv = document.getElementById('control-buttons');
   var reloadButton = document.getElementById('reload-button');
   var detailsButton = document.getElementById('details-button');

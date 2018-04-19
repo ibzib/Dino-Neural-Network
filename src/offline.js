@@ -53,6 +53,7 @@ function Runner(outerContainerId, opt_config) {
   this.inverted = false;
   this.invertTimer = 0;
   this.resizeTimerId_ = null;
+  this.trainingCutoff = 0;
 
   this.playCount = 0;
   this.lastExtinction = 0;
@@ -96,11 +97,10 @@ var FPS = 60;
 var HAS_OBSTACLES = true;
 var USE_NN = true;
 var AUTO_RESTART = true;
-var RENDERING_ON = false; // are we showing dino on the screen in real time?
+var RENDERING_ON = true; // are we showing dino on the screen in real time?
 var SHOW_DISTANCE_METER = true;
 var OUTPUT_SENSITIVITY = 0.05;
 var PAUSE_ON_TAB_OFF = false;
-var TRAINING_CUTOFF = 10000;
 
 var tRexBoxColors = [
   'blue',
@@ -421,21 +421,10 @@ Runner.prototype = {
 
     this.outerContainerEl.appendChild(this.containerEl);
 
-    this.startListening();
     this.update();
 
     window.addEventListener(Runner.events.RESIZE,
         this.debounceResize.bind(this));
-  },
-
-  /**
-   * Create the touch controller. A div that covers whole screen.
-   */
-  createTouchController: function() {
-    this.touchController = document.createElement('div');
-    this.touchController.className = Runner.classes.TOUCH_CONTROLLER;
-    this.touchController.addEventListener(Runner.events.TOUCHSTART, this);
-    this.touchController.addEventListener(Runner.events.TOUCHEND, this);
   },
 
   /**
@@ -648,7 +637,6 @@ Runner.prototype = {
             if (collision) {
               tRex.update(deltaTime, Trex.status.CRASHED, this.currentSpeed);
               this.collisionCount++;
-              console.log('bam');
             } else {
               tRex.perceptron.fitness = this.distanceRan;
               if (this.distanceRan > this.allTimeMaxDistanceRan) {
@@ -730,148 +718,6 @@ Runner.prototype = {
   },
 
   /**
-   * Event handler.
-   */
-  handleEvent: function(e) {
-    return (function(evtType, events) {
-      switch (evtType) {
-        case events.KEYDOWN:
-        case events.TOUCHSTART:
-        case events.POINTERDOWN:
-          this.onKeyDown(e);
-          break;
-        case events.KEYUP:
-        case events.TOUCHEND:
-        case events.POINTERUP:
-          this.onKeyUp(e);
-          break;
-      }
-    }.bind(this))(e.type, Runner.events);
-  },
-
-  /**
-   * Bind relevant key / mouse / touch listeners.
-   */
-  startListening: function() {
-    // Keys.
-    document.addEventListener(Runner.events.KEYDOWN, this);
-    document.addEventListener(Runner.events.KEYUP, this);
-
-    // Touch / pointer.
-    this.containerEl.addEventListener(Runner.events.TOUCHSTART, this);
-    document.addEventListener(Runner.events.POINTERDOWN, this);
-    document.addEventListener(Runner.events.POINTERUP, this);
-  },
-
-  /**
-   * Remove all listeners.
-   */
-  stopListening: function() {
-    document.removeEventListener(Runner.events.KEYDOWN, this);
-    document.removeEventListener(Runner.events.KEYUP, this);
-
-    if (this.touchController) {
-      this.touchController.removeEventListener(Runner.events.TOUCHSTART, this);
-      this.touchController.removeEventListener(Runner.events.TOUCHEND, this);
-    }
-
-    this.containerEl.removeEventListener(Runner.events.TOUCHSTART, this);
-    document.removeEventListener(Runner.events.POINTERDOWN, this);
-    document.removeEventListener(Runner.events.POINTERUP, this);
-  },
-
-  /**
-   * Process keydown.
-   * @param {Event} e
-   */
-  onKeyDown: function(e) {
-    // Prevent native page scrolling whilst tapping on mobile.
-    if (IS_MOBILE && this.playing) {
-      e.preventDefault();
-    }
-
-    if (!this.crashed && !this.paused) {
-      if (Runner.keycodes.JUMP[e.keyCode] ||
-          e.type == Runner.events.TOUCHSTART) {
-        e.preventDefault();
-        // Starting the game for the first time.
-        if (!this.playing) {
-          // Started by touch so create a touch controller.
-          if (!this.touchController && e.type == Runner.events.TOUCHSTART) {
-            this.createTouchController();
-          }
-          // this.loadSounds();
-          this.playing = true;
-          this.update();
-          if (window.errorPageController) {
-            errorPageController.trackEasterEgg();
-          }
-        }
-        // Start jump.
-        if (!this.tRexes[0].jumping && !this.tRexes[0].ducking) {
-          this.playSound(this.soundFx.BUTTON_PRESS);
-          this.tRexes[0].startJump(this.currentSpeed);
-        }
-      } else if (this.playing && Runner.keycodes.DUCK[e.keyCode]) {
-        e.preventDefault();
-        if (this.tRexes[0].jumping) {
-          // Speed drop, activated only when jump key is not pressed.
-          this.tRexes[0].setSpeedDrop();
-        } else if (!this.tRexes[0].jumping && !this.tRexes[0].ducking) {
-          // Duck.
-          this.tRexes[0].setDuck(true);
-        }
-      }
-    } else if (this.crashed && e.type == Runner.events.TOUCHSTART &&
-        e.currentTarget == this.containerEl) {
-      this.restart();
-    }
-  },
-
-
-  /**
-   * Process key up.
-   * @param {Event} e
-   */
-  onKeyUp: function(e) {
-    var keyCode = String(e.keyCode);
-    var isjumpKey = Runner.keycodes.JUMP[keyCode] ||
-       e.type == Runner.events.TOUCHEND ||
-       e.type == Runner.events.POINTERUP;
-
-    if (this.isRunning() && isjumpKey) {
-      this.tRexes[0].endJump();
-    } else if (Runner.keycodes.DUCK[keyCode]) {
-      this.tRexes[0].speedDrop = false;
-      this.tRexes[0].setDuck(false);
-    } else if (this.crashed) {
-      // Check that enough time has elapsed before allowing jump key to restart.
-      var deltaTime = getTimeStamp() - this.time;
-
-      if (Runner.keycodes.RESTART[keyCode] || this.isLeftClickOnCanvas(e) ||
-          (deltaTime >= this.config.GAMEOVER_CLEAR_TIME &&
-          Runner.keycodes.JUMP[keyCode])) {
-        this.restart();
-      }
-    } else if (this.paused && isjumpKey) {
-      // Reset the jump state
-      this.tRexes[0].reset();
-      this.play();
-    }
-  },
-
-  /**
-   * Returns whether the event was a left click on canvas.
-   * On Windows right click is registered as a click.
-   * @param {Event} e
-   * @return {boolean}
-   */
-  isLeftClickOnCanvas: function(e) {
-    return e.button != null && e.button < 2 &&
-        e.type == Runner.events.POINTERUP && e.target == this.canvas;
-  },
-
-  /**
    * RequestAnimationFrame wrapper.
    */
   scheduleNextUpdate: function() {
@@ -887,6 +733,17 @@ Runner.prototype = {
    */
   isRunning: function() {
     return !!this.raqId;
+  },
+
+  startTraining: function(cutoff) {
+    this.trainingCutoff = cutoff;
+    RENDERING_ON = false;
+    this.startRunning();
+  },
+
+  startRunning: function() {
+    this.playing = true;
+    this.update();
   },
 
   /**
@@ -913,7 +770,7 @@ Runner.prototype = {
     if (this.distanceRan > this.highestScore) {
       this.highestScore = Math.ceil(this.distanceRan);
       this.distanceMeter.setHighScore(this.highestScore);
-      if (this.distanceMeter.getActualDistance(Math.ceil(this.distanceRan)) > TRAINING_CUTOFF) {
+      if (this.distanceMeter.getActualDistance(Math.ceil(this.distanceRan)) > this.trainingCutoff) {
         RENDERING_ON = true;
       }
     }
@@ -963,17 +820,17 @@ Runner.prototype = {
       this.horizon.reset();
       
       var maxFitness = this.genetics.evolvePopulation();
-      var message = '';
-      message += 'era number: ' + this.eraCount;
-      message += ' play count: ' + this.playCount;
-      message += ' max score: ' + this.distanceMeter.getActualDistance(Math.ceil(maxFitness));
-      console.log(message);
+      var message = this.playCount + '\t';
+      message += this.distanceMeter.getActualDistance(Math.ceil(maxFitness));
+
+      var trainingInfo = document.getElementById('training-info');
+      trainingInfo.value += message + '\n';
+      trainingInfo.scrollTop = trainingInfo.scrollHeight;
+
       if (maxFitness > this.recordMaxFitness) {
         this.recordMaxFitness = maxFitness;
-        console.log('NEW RECORD');
       }
       if (maxFitness < EXTINCTION_THRESHOLD) {
-        console.log('EXTINCTION');
         this.lastExtinction = this.playCount;
         this.eraMaxDistanceRan = 0;
         this.eraCount++;

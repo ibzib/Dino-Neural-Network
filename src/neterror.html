@@ -38,9 +38,25 @@
     background-repeat: no-repeat;
     background-size: 100%;
   }
+
   </style>
   <link rel="stylesheet" href="./interstitial_common.css" type="text/css">
   <link rel="stylesheet" href="./neterror.css" type="text/css">
+  <style>
+  button {
+    float: none;
+    margin: 1em;
+  }
+  #training-box {
+    overflow: hidden;
+    position: relative;
+  }
+  #training-info {
+    position: fixed; 
+    bottom: 0%;
+    font-family: "Lucida Console", Monaco, monospace;
+  }
+  </style>
   <script src="interstitial_common.js"></script>
   <script src="interstitial_mobile_nav.js"></script>
   <script src="synaptic.min.js"></script>
@@ -49,9 +65,15 @@
   <script src="offline.js"></script>
 </head>
 <body id="t" style="font-family: system-ui, sans-serif; font-size: 75%">
+  <div id="training-box">
+    Train until reaching score:
+    <input type="number" id="trainingInput" value="10000">
+    <button onmousedown="train()" id='trainBtn'>Train</button>    
+    <button onmousedown="dontTrain()" id='dontTrainBtn'>Don't Train</button>
+  </div>
   <div id="main-frame-error" class="interstitial-wrapper">
     <div id="main-content">
-      <div class="icon icon-offline" onload="instantiateRunner()" 
+      <div class="icon icon-offline" onload="instantiateRunner()"
           jseval="updateIconClass(this.classList, iconClass)" alt=""></div>
       <div id="main-message">
         <h1 jsselect="heading" jsvalues=".innerHTML:msg"></h1>
@@ -118,5 +140,6 @@
       <audio id="offline-sound-reached" src="sounds/score-reached.mp3"></audio>
     </template>
   </div>
+  <textarea id="training-info" rows="10" cols="100"></textarea>
 </body>
 </html>
