@@ -96,11 +96,11 @@ var FPS = 60;
 var HAS_OBSTACLES = true;
 var USE_NN = true;
 var AUTO_RESTART = true;
-var RESTART_DELAY = 1; // ms before restarting when AUTO_RESTART is set
+var RENDERING_ON = false; // are we showing dino on the screen in real time?
 var SHOW_DISTANCE_METER = true;
 var OUTPUT_SENSITIVITY = 0.05;
-var SHOW_INFO = false;
 var PAUSE_ON_TAB_OFF = false;
+var TRAINING_CUTOFF = 10000;
 
 var tRexBoxColors = [
   'blue',
@@ -487,16 +487,18 @@ Runner.prototype = {
         this.containerEl.style.height = this.dimensions.HEIGHT + 'px';
         this.distanceMeter.update(0, Math.ceil(this.distanceRan));
         // this.stop();
-      } else {
-        // this.tRexes.forEach(function (tRex) {
-        //   tRex.draw(0, 0);
-        // });
+      } else if (RENDERING_ON) {
+        this.tRexes.forEach(function (tRex) {
+          tRex.draw(0, 0);
+        });
       }
 
       // Game over panel.
       if (this.crashed && this.gameOverPanel) {
         this.gameOverPanel.updateDimensions(this.dimensions.WIDTH);
-        // this.gameOverPanel.draw();
+        if (RENDERING_ON) {
+          this.gameOverPanel.draw();
+        }
       }
     }
   },
@@ -519,9 +521,12 @@ Runner.prototype = {
           '}';
       document.styleSheets[0].insertRule(keyframes, 0);
 
-      // this.containerEl.addEventListener(Runner.events.ANIM_END,
-      //     this.startGame.bind(this));
-      this.startGame();
+      if (RENDERING_ON) {
+        this.containerEl.addEventListener(Runner.events.ANIM_END,
+            this.startGame.bind(this));      
+      } else {
+        this.startGame();
+      }
 
       this.containerEl.style.webkitAnimation = 'intro .4s ease-out 1 both';
       this.containerEl.style.width = this.dimensions.WIDTH + 'px';
@@ -581,12 +586,13 @@ Runner.prototype = {
     while (true) {
 
       var now = getTimeStamp();
-      // var deltaTime = now - (this.time || now);
-      var deltaTime = 16.666666; // simulate the passage of time
+      var deltaTime = RENDERING_ON ? now - (this.time || now) : 16.666666;
       this.time = now;
 
       if (this.playing) {
-        // this.clearCanvas();
+        if (RENDERING_ON) {
+          this.clearCanvas();
+        }
 
         this.tRexes.forEach(function (tRex, index) {
           if (tRex.status != Trex.status.CRASHED) {
@@ -676,7 +682,7 @@ Runner.prototype = {
           this.playSound(this.soundFx.SCORE);
         }
 
-        if (SHOW_INFO) {
+        if (RENDERING_ON) {
           // display generation #
           this.canvasCtx.fillStyle = 'lightgray';
           var info = "gen " + this.playCount;
@@ -688,7 +694,9 @@ Runner.prototype = {
         if (this.invertTimer > this.config.INVERT_FADE_DURATION) {
           this.invertTimer = 0;
           this.invertTrigger = false;
-          this.invert();
+          if (RENDERING_ON) {
+            this.invert();
+          }
         } else if (this.invertTimer) {
           this.invertTimer += deltaTime;
         } else {
@@ -701,7 +709,9 @@ Runner.prototype = {
 
             if (this.invertTrigger && this.invertTimer === 0) {
               this.invertTimer += deltaTime;
-              this.invert();
+              if (RENDERING_ON) {
+                this.invert();
+              }
             }
           }
         }
@@ -711,7 +721,10 @@ Runner.prototype = {
         this.tRexes.forEach(function (tRex) {
           tRex.update(deltaTime, tRex.status, this.currentSpeed);
         }, this);
-        // this.scheduleNextUpdate();
+        if (RENDERING_ON) {
+          this.scheduleNextUpdate();
+          return;
+        }
       }
     }
   },
@@ -892,14 +905,17 @@ Runner.prototype = {
       this.gameOverPanel = new GameOverPanel(this.canvas,
           this.spriteDef.TEXT_SPRITE, this.spriteDef.RESTART,
           this.dimensions);
-    } else {
-      // this.gameOverPanel.draw();
+    } else if (RENDERING_ON) {
+      this.gameOverPanel.draw();
     }
 
     // Update the high score.
     if (this.distanceRan > this.highestScore) {
       this.highestScore = Math.ceil(this.distanceRan);
       this.distanceMeter.setHighScore(this.highestScore);
+      if (this.distanceMeter.getActualDistance(Math.ceil(this.distanceRan)) > TRAINING_CUTOFF) {
+        RENDERING_ON = true;
+      }
     }
 
     // Reset the time clock.
@@ -909,7 +925,7 @@ Runner.prototype = {
       var that = this; // save context
       window.setTimeout(function() {
         that.restart();
-      }, RESTART_DELAY);
+      }, (RENDERING_ON ? 3000 : 1));
     }
   },
 
@@ -950,7 +966,7 @@ Runner.prototype = {
       var message = '';
       message += 'era number: ' + this.eraCount;
       message += ' play count: ' + this.playCount;
-      message += ' max score: ' + this.distanceMeter.getActualDistance(maxFitness);
+      message += ' max score: ' + this.distanceMeter.getActualDistance(Math.ceil(maxFitness));
       console.log(message);
       if (maxFitness > this.recordMaxFitness) {
         this.recordMaxFitness = maxFitness;
@@ -1186,7 +1202,9 @@ function GameOverPanel(canvas, textImgPos, restartImgPos, dimensions) {
   this.canvasDimensions = dimensions;
   this.textImgPos = textImgPos;
   this.restartImgPos = restartImgPos;
-  // this.draw();
+  if (RENDERING_ON) {
+    this.draw();
+  }
 };
 
 
@@ -1296,9 +1314,9 @@ function checkForCollision(obstacle, tRex, opt_canvasCtx) {
       obstacle.typeConfig.height - 2);
 
   // Debug outer box
-  // if (opt_canvasCtx) {
-  //   drawCollisionBoxes(opt_canvasCtx, tRexBox, tRex.color, obstacleBox);
-  // }
+  if (RENDERING_ON && opt_canvasCtx) {
+    drawCollisionBoxes(opt_canvasCtx, tRexBox, tRex.color, obstacleBox);
+  }
 
   // Simple outer bounds check.
   if (boxCompare(tRexBox, obstacleBox)) {
@@ -1317,9 +1335,9 @@ function checkForCollision(obstacle, tRex, opt_canvasCtx) {
         var crashed = boxCompare(adjTrexBox, adjObstacleBox);
 
         // Draw boxes for debug.
-        // if (opt_canvasCtx) {
-        //   drawCollisionBoxes(opt_canvasCtx, adjTrexBox, tRex.color, adjObstacleBox);
-        // }
+        if (RENDERING_ON && opt_canvasCtx) {
+          drawCollisionBoxes(opt_canvasCtx, adjTrexBox, tRex.color, adjObstacleBox);
+        }
 
         if (crashed) {
           return [adjTrexBox, adjObstacleBox];
@@ -1476,8 +1494,9 @@ Obstacle.prototype = {
     } else {
       this.yPos = this.typeConfig.yPos;
     }
-
-    // this.draw();
+    if (RENDERING_ON) {
+      this.draw();
+    }
 
     // Make collision box adjustments,
     // Central box is adjusted to the size as one box.
@@ -1552,7 +1571,9 @@ Obstacle.prototype = {
           this.timer = 0;
         }
       }
-      // this.draw();
+      if (RENDERING_ON) {
+        this.draw();
+      } 
 
       if (!this.isVisible()) {
         this.remove = true;
@@ -1798,7 +1819,10 @@ Trex.prototype = {
     this.yPos = this.groundYPos;
     this.minJumpHeight = this.groundYPos - this.config.MIN_JUMP_HEIGHT;
 
-    // this.draw(0, 0);
+    if (RENDERING_ON) {
+      this.draw(0, 0);
+    }
+
     this.update(0, Trex.status.WAITING);
   },
 
@@ -1842,11 +1866,11 @@ Trex.prototype = {
       this.blink(getTimeStamp());
     } else if (this.status == Trex.status.CRASHED) {
       this.xPos -= Math.floor((speed * FPS / 1000) * deltaTime);
-      if (this.xPos >= 0) {
-        // this.draw(this.currentAnimFrames[this.currentFrame], 0);
+      if (RENDERING_ON && this.xPos >= 0) {
+        this.draw(this.currentAnimFrames[this.currentFrame], 0);
       }
-    } else {
-      // this.draw(this.currentAnimFrames[this.currentFrame], 0);
+    } else if (RENDERING_ON) {
+      this.draw(this.currentAnimFrames[this.currentFrame], 0);
     }
 
     // Update the frame position.
@@ -1920,7 +1944,9 @@ Trex.prototype = {
     var deltaTime = time - this.animStartTime;
 
     if (deltaTime >= this.blinkDelay) {
-      // this.draw(this.currentAnimFrames[this.currentFrame], 0);
+      if (RENDERING_ON) {
+        this.draw(this.currentAnimFrames[this.currentFrame], 0);
+      }
 
       if (this.currentFrame == 1) {
         // Set new random delay to blink.
@@ -2117,7 +2143,9 @@ DistanceMeter.prototype = {
     this.calcXPos(width);
     this.maxScore = this.maxScoreUnits;
     for (var i = 0; i < this.maxScoreUnits; i++) {
-      // this.draw(i, 0);
+      if (RENDERING_ON) {
+        this.draw(i, 0);
+      }
       this.defaultString += '0';
       maxDistanceStr += '9';
     }
@@ -2247,15 +2275,16 @@ DistanceMeter.prototype = {
     }
 
     // Draw the digits if not flashing.
-    // if (paint) {
-    //   for (var i = this.digits.length - 1; i >= 0; i--) {
-    //     this.draw(i, parseInt(this.digits[i]));
-    //   }
-    // }
-
-    // if (SHOW_DISTANCE_METER) {
-    //   this.drawHighScore();
-    // }
+    if (RENDERING_ON) {
+      if (paint) {
+        for (var i = this.digits.length - 1; i >= 0; i--) {
+          this.draw(i, parseInt(this.digits[i]));
+        }
+      }
+      if (SHOW_DISTANCE_METER) {
+        this.drawHighScore();
+      }      
+    }
     return playSound;
   },
 
@@ -2339,7 +2368,9 @@ Cloud.prototype = {
   init: function() {
     this.yPos = getRandomNum(Cloud.config.MAX_SKY_LEVEL,
         Cloud.config.MIN_SKY_LEVEL);
-    // this.draw();
+    if (RENDERING_ON) {
+      this.draw();
+    }
   },
 
   /**
@@ -2371,7 +2402,9 @@ Cloud.prototype = {
   update: function(speed) {
     if (!this.remove) {
       this.xPos -= Math.ceil(speed);
-      // this.draw();
+      if (RENDERING_ON) {
+        this.draw();
+      }
 
       // Mark as removeable if no longer in the canvas.
       if (!this.isVisible()) {
@@ -2459,7 +2492,9 @@ NightMode.prototype = {
                 NightMode.config.STAR_SPEED);
          }
       }
-      // this.draw();
+      if (RENDERING_ON) {
+        this.draw();
+      }
     } else {
       this.opacity = 0;
       this.placeStars();
@@ -2568,7 +2603,9 @@ function HorizonLine(canvas, spritePos) {
   this.bumpThreshold = 0.5;
 
   this.setSourceDimensions();
-  // this.draw();
+  if (RENDERING_ON) {
+    this.draw();
+  }
 };
 
 
@@ -2662,7 +2699,9 @@ HorizonLine.prototype = {
     } else {
       this.updateXPos(1, increment);
     }
-    // this.draw();
+    if (RENDERING_ON) {
+      this.draw();
+    }
   },
 
   /**
