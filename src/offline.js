@@ -96,10 +96,10 @@ var FPS = 60;
 var HAS_OBSTACLES = true;
 var USE_NN = true;
 var AUTO_RESTART = true;
-var RESTART_DELAY = 3000; // ms before restarting when AUTO_RESTART is set
+var RESTART_DELAY = 1; // ms before restarting when AUTO_RESTART is set
 var SHOW_DISTANCE_METER = true;
 var OUTPUT_SENSITIVITY = 0.05;
-var SHOW_INFO = true;
+var SHOW_INFO = false;
 var PAUSE_ON_TAB_OFF = false;
 
 var tRexBoxColors = [
@@ -488,15 +488,15 @@ Runner.prototype = {
         this.distanceMeter.update(0, Math.ceil(this.distanceRan));
         // this.stop();
       } else {
-        this.tRexes.forEach(function (tRex) {
-          tRex.draw(0, 0);
-        });
+        // this.tRexes.forEach(function (tRex) {
+        //   tRex.draw(0, 0);
+        // });
       }
 
       // Game over panel.
       if (this.crashed && this.gameOverPanel) {
         this.gameOverPanel.updateDimensions(this.dimensions.WIDTH);
-        this.gameOverPanel.draw();
+        // this.gameOverPanel.draw();
       }
     }
   },
@@ -519,8 +519,9 @@ Runner.prototype = {
           '}';
       document.styleSheets[0].insertRule(keyframes, 0);
 
-      this.containerEl.addEventListener(Runner.events.ANIM_END,
-          this.startGame.bind(this));
+      // this.containerEl.addEventListener(Runner.events.ANIM_END,
+      //     this.startGame.bind(this));
+      this.startGame();
 
       this.containerEl.style.webkitAnimation = 'intro .4s ease-out 1 both';
       this.containerEl.style.width = this.dimensions.WIDTH + 'px';
@@ -574,133 +575,144 @@ Runner.prototype = {
    */
   update: function() {
     this.updatePending = false;
+    if (!this.playing) {
+      return;
+    }
+    while (true) {
 
-    var now = getTimeStamp();
-    var deltaTime = now - (this.time || now);
-    this.time = now;
+      var now = getTimeStamp();
+      // var deltaTime = now - (this.time || now);
+      var deltaTime = 16.666666; // simulate the passage of time
+      this.time = now;
 
-    if (this.playing) {
-      this.clearCanvas();
+      if (this.playing) {
+        // this.clearCanvas();
 
-      this.tRexes.forEach(function (tRex, index) {
-        if (tRex.status != Trex.status.CRASHED) {
-          if (tRex.jumping) {
-            tRex.updateJump(deltaTime);
-          }
-          if (USE_NN) {
-            var output = this.genetics.activate(index, this.horizon.obstacles[0], this.currentSpeed);
-            if (output > 0.5+OUTPUT_SENSITIVITY) {
-              if (!tRex.jumping) {
-                if (tRex.ducking) {
-                  tRex.setDuck(false);
-                } else {
-                  tRex.startJump(this.currentSpeed);
+        this.tRexes.forEach(function (tRex, index) {
+          if (tRex.status != Trex.status.CRASHED) {
+            if (tRex.jumping) {
+              tRex.updateJump(deltaTime);
+            }
+            if (USE_NN) {
+              var output = this.genetics.activate(index, this.horizon.obstacles[0], this.currentSpeed);
+              if (output > 0.5+OUTPUT_SENSITIVITY) {
+                if (!tRex.jumping) {
+                  if (tRex.ducking) {
+                    tRex.setDuck(false);
+                  } else {
+                    tRex.startJump(this.currentSpeed);
+                  }
+                }
+              } else if (output < 0.5-OUTPUT_SENSITIVITY) {
+                if (tRex.jumping) {
+                  tRex.setSpeedDrop();
+                } else if (!tRex.jumping && !tRex.ducking) {
+                  tRex.setDuck(true);
                 }
               }
-            } else if (output < 0.5-OUTPUT_SENSITIVITY) {
-              if (tRex.jumping) {
-                tRex.setSpeedDrop();
-              } else if (!tRex.jumping && !tRex.ducking) {
-                tRex.setDuck(true);
+            }
+          }
+        }, this);
+
+        this.runningTime += deltaTime;
+        if (HAS_OBSTACLES) {
+          var hasObstacles = this.runningTime > this.config.CLEAR_TIME;
+        } else {
+          var hasObstacles = false;
+        }
+
+        if (!this.playingIntro) {
+          this.playIntro();
+        }
+
+        // The horizon doesn't move until the intro is over.
+        if (this.playingIntro) {
+          this.horizon.update(0, this.currentSpeed, hasObstacles);
+        } else {
+          deltaTime = !this.activated ? 0 : deltaTime;
+          this.horizon.update(deltaTime, this.currentSpeed, hasObstacles,
+              this.inverted);
+        }
+
+        // Check for collisions.
+        this.tRexes.forEach(function (tRex, index) {
+          if (tRex.status != Trex.status.CRASHED) {
+            var collision = hasObstacles &&
+                checkForCollision(this.horizon.obstacles[0], tRex, this.canvasCtx);
+            if (collision) {
+              tRex.update(deltaTime, Trex.status.CRASHED, this.currentSpeed);
+              this.collisionCount++;
+              console.log('bam');
+            } else {
+              tRex.perceptron.fitness = this.distanceRan;
+              if (this.distanceRan > this.allTimeMaxDistanceRan) {
+                this.allTimeMaxDistanceRan = this.distanceRan;
+              }
+              if (this.distanceRan > this.eraMaxDistanceRan) {
+                this.eraMaxDistanceRan = this.distanceRan;
               }
             }
           }
+        }, this);
+
+        if (this.collisionCount < this.tRexes.length) {
+          this.distanceRan += this.currentSpeed * deltaTime / this.msPerFrame;
+
+          if (this.currentSpeed < this.config.MAX_SPEED) {
+            this.currentSpeed += this.config.ACCELERATION;
+          }
+        } else {
+          this.gameOver();
         }
-      }, this);
 
-      this.runningTime += deltaTime;
-      if (HAS_OBSTACLES) {
-        var hasObstacles = this.runningTime > this.config.CLEAR_TIME;
-      } else {
-        var hasObstacles = false;
-      }
+        if (!this.playing) {
+          return;
+        }
 
-      if (this.tRexes[0].jumpCount == 1 && !this.playingIntro) {
-        this.playIntro();
-      }
+        var playAchievementSound = this.distanceMeter.update(deltaTime,
+            Math.ceil(this.distanceRan));
 
-      // The horizon doesn't move until the intro is over.
-      if (this.playingIntro) {
-        this.horizon.update(0, this.currentSpeed, hasObstacles);
-      } else {
-        deltaTime = !this.activated ? 0 : deltaTime;
-        this.horizon.update(deltaTime, this.currentSpeed, hasObstacles,
-            this.inverted);
-      }
+        if (playAchievementSound) {
+          this.playSound(this.soundFx.SCORE);
+        }
 
-      // Check for collisions.
-      this.tRexes.forEach(function (tRex, index) {
-        if (tRex.status != Trex.status.CRASHED) {
-          var collision = hasObstacles &&
-              checkForCollision(this.horizon.obstacles[0], tRex, this.canvasCtx);
-          if (collision) {
-            tRex.update(deltaTime, Trex.status.CRASHED, this.currentSpeed);
-            this.collisionCount++;
-          } else {
-            tRex.perceptron.fitness = this.distanceRan;
-            if (this.distanceRan > this.allTimeMaxDistanceRan) {
-              this.allTimeMaxDistanceRan = this.distanceRan;
-            }
-            if (this.distanceRan > this.eraMaxDistanceRan) {
-              this.eraMaxDistanceRan = this.distanceRan;
+        if (SHOW_INFO) {
+          // display generation #
+          this.canvasCtx.fillStyle = 'lightgray';
+          var info = "gen " + this.playCount;
+          info += " dinos: " + (POPULATION_SIZE-this.collisionCount) + "/" + POPULATION_SIZE;
+          this.canvasCtx.fillText(info, this.dimensions.WIDTH/2-this.canvasCtx.measureText(info).width/2, 8);
+        }
+
+        // Night mode.
+        if (this.invertTimer > this.config.INVERT_FADE_DURATION) {
+          this.invertTimer = 0;
+          this.invertTrigger = false;
+          this.invert();
+        } else if (this.invertTimer) {
+          this.invertTimer += deltaTime;
+        } else {
+          var actualDistance =
+              this.distanceMeter.getActualDistance(Math.ceil(this.distanceRan));
+
+          if (actualDistance > 0) {
+            this.invertTrigger = !(actualDistance %
+                this.config.INVERT_DISTANCE);
+
+            if (this.invertTrigger && this.invertTimer === 0) {
+              this.invertTimer += deltaTime;
+              this.invert();
             }
           }
         }
-      }, this);
-
-      if (this.collisionCount < this.tRexes.length) {
-        this.distanceRan += this.currentSpeed * deltaTime / this.msPerFrame;
-
-        if (this.currentSpeed < this.config.MAX_SPEED) {
-          this.currentSpeed += this.config.ACCELERATION;
-        }
-      } else {
-        this.gameOver();
       }
 
-      var playAchievementSound = this.distanceMeter.update(deltaTime,
-          Math.ceil(this.distanceRan));
-
-      if (playAchievementSound) {
-        this.playSound(this.soundFx.SCORE);
+      if (this.playing) {
+        this.tRexes.forEach(function (tRex) {
+          tRex.update(deltaTime, tRex.status, this.currentSpeed);
+        }, this);
+        // this.scheduleNextUpdate();
       }
-
-      if (SHOW_INFO) {
-        // display generation #
-        this.canvasCtx.fillStyle = 'lightgray';
-        var info = "gen " + this.playCount;
-        info += " dinos: " + (POPULATION_SIZE-this.collisionCount) + "/" + POPULATION_SIZE;
-        this.canvasCtx.fillText(info, this.dimensions.WIDTH/2-this.canvasCtx.measureText(info).width/2, 8);
-      }
-
-      // Night mode.
-      if (this.invertTimer > this.config.INVERT_FADE_DURATION) {
-        this.invertTimer = 0;
-        this.invertTrigger = false;
-        this.invert();
-      } else if (this.invertTimer) {
-        this.invertTimer += deltaTime;
-      } else {
-        var actualDistance =
-            this.distanceMeter.getActualDistance(Math.ceil(this.distanceRan));
-
-        if (actualDistance > 0) {
-          this.invertTrigger = !(actualDistance %
-              this.config.INVERT_DISTANCE);
-
-          if (this.invertTrigger && this.invertTimer === 0) {
-            this.invertTimer += deltaTime;
-            this.invert();
-          }
-        }
-      }
-    }
-
-    if (this.playing) {
-      this.tRexes.forEach(function (tRex) {
-        tRex.update(deltaTime, tRex.status, this.currentSpeed);
-      }, this);
-      this.scheduleNextUpdate();
     }
   },
 
@@ -881,7 +893,7 @@ Runner.prototype = {
           this.spriteDef.TEXT_SPRITE, this.spriteDef.RESTART,
           this.dimensions);
     } else {
-      this.gameOverPanel.draw();
+      // this.gameOverPanel.draw();
     }
 
     // Update the high score.
@@ -1174,7 +1186,7 @@ function GameOverPanel(canvas, textImgPos, restartImgPos, dimensions) {
   this.canvasDimensions = dimensions;
   this.textImgPos = textImgPos;
   this.restartImgPos = restartImgPos;
-  this.draw();
+  // this.draw();
 };
 
 
@@ -1284,9 +1296,9 @@ function checkForCollision(obstacle, tRex, opt_canvasCtx) {
       obstacle.typeConfig.height - 2);
 
   // Debug outer box
-  if (opt_canvasCtx) {
-    drawCollisionBoxes(opt_canvasCtx, tRexBox, tRex.color, obstacleBox);
-  }
+  // if (opt_canvasCtx) {
+  //   drawCollisionBoxes(opt_canvasCtx, tRexBox, tRex.color, obstacleBox);
+  // }
 
   // Simple outer bounds check.
   if (boxCompare(tRexBox, obstacleBox)) {
@@ -1305,9 +1317,9 @@ function checkForCollision(obstacle, tRex, opt_canvasCtx) {
         var crashed = boxCompare(adjTrexBox, adjObstacleBox);
 
         // Draw boxes for debug.
-        if (opt_canvasCtx) {
-          drawCollisionBoxes(opt_canvasCtx, adjTrexBox, tRex.color, adjObstacleBox);
-        }
+        // if (opt_canvasCtx) {
+        //   drawCollisionBoxes(opt_canvasCtx, adjTrexBox, tRex.color, adjObstacleBox);
+        // }
 
         if (crashed) {
           return [adjTrexBox, adjObstacleBox];
@@ -1465,7 +1477,7 @@ Obstacle.prototype = {
       this.yPos = this.typeConfig.yPos;
     }
 
-    this.draw();
+    // this.draw();
 
     // Make collision box adjustments,
     // Central box is adjusted to the size as one box.
@@ -1540,7 +1552,7 @@ Obstacle.prototype = {
           this.timer = 0;
         }
       }
-      this.draw();
+      // this.draw();
 
       if (!this.isVisible()) {
         this.remove = true;
@@ -1786,7 +1798,7 @@ Trex.prototype = {
     this.yPos = this.groundYPos;
     this.minJumpHeight = this.groundYPos - this.config.MIN_JUMP_HEIGHT;
 
-    this.draw(0, 0);
+    // this.draw(0, 0);
     this.update(0, Trex.status.WAITING);
   },
 
@@ -1831,10 +1843,10 @@ Trex.prototype = {
     } else if (this.status == Trex.status.CRASHED) {
       this.xPos -= Math.floor((speed * FPS / 1000) * deltaTime);
       if (this.xPos >= 0) {
-        this.draw(this.currentAnimFrames[this.currentFrame], 0);
+        // this.draw(this.currentAnimFrames[this.currentFrame], 0);
       }
     } else {
-      this.draw(this.currentAnimFrames[this.currentFrame], 0);
+      // this.draw(this.currentAnimFrames[this.currentFrame], 0);
     }
 
     // Update the frame position.
@@ -1908,7 +1920,7 @@ Trex.prototype = {
     var deltaTime = time - this.animStartTime;
 
     if (deltaTime >= this.blinkDelay) {
-      this.draw(this.currentAnimFrames[this.currentFrame], 0);
+      // this.draw(this.currentAnimFrames[this.currentFrame], 0);
 
       if (this.currentFrame == 1) {
         // Set new random delay to blink.
@@ -2105,7 +2117,7 @@ DistanceMeter.prototype = {
     this.calcXPos(width);
     this.maxScore = this.maxScoreUnits;
     for (var i = 0; i < this.maxScoreUnits; i++) {
-      this.draw(i, 0);
+      // this.draw(i, 0);
       this.defaultString += '0';
       maxDistanceStr += '9';
     }
@@ -2235,15 +2247,15 @@ DistanceMeter.prototype = {
     }
 
     // Draw the digits if not flashing.
-    if (paint) {
-      for (var i = this.digits.length - 1; i >= 0; i--) {
-        this.draw(i, parseInt(this.digits[i]));
-      }
-    }
+    // if (paint) {
+    //   for (var i = this.digits.length - 1; i >= 0; i--) {
+    //     this.draw(i, parseInt(this.digits[i]));
+    //   }
+    // }
 
-    if (SHOW_DISTANCE_METER) {
-      this.drawHighScore();
-    }
+    // if (SHOW_DISTANCE_METER) {
+    //   this.drawHighScore();
+    // }
     return playSound;
   },
 
@@ -2327,7 +2339,7 @@ Cloud.prototype = {
   init: function() {
     this.yPos = getRandomNum(Cloud.config.MAX_SKY_LEVEL,
         Cloud.config.MIN_SKY_LEVEL);
-    this.draw();
+    // this.draw();
   },
 
   /**
@@ -2359,7 +2371,7 @@ Cloud.prototype = {
   update: function(speed) {
     if (!this.remove) {
       this.xPos -= Math.ceil(speed);
-      this.draw();
+      // this.draw();
 
       // Mark as removeable if no longer in the canvas.
       if (!this.isVisible()) {
@@ -2447,7 +2459,7 @@ NightMode.prototype = {
                 NightMode.config.STAR_SPEED);
          }
       }
-      this.draw();
+      // this.draw();
     } else {
       this.opacity = 0;
       this.placeStars();
@@ -2556,7 +2568,7 @@ function HorizonLine(canvas, spritePos) {
   this.bumpThreshold = 0.5;
 
   this.setSourceDimensions();
-  this.draw();
+  // this.draw();
 };
 
 
@@ -2650,7 +2662,7 @@ HorizonLine.prototype = {
     } else {
       this.updateXPos(1, increment);
     }
-    this.draw();
+    // this.draw();
   },
 
   /**
