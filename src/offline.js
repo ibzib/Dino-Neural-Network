@@ -820,7 +820,7 @@ Runner.prototype = {
       this.horizon.reset();
       
       var maxFitness = this.genetics.evolvePopulation();
-      var message = this.playCount + '\t';
+      var message = this.playCount + ',\t';
       message += this.distanceMeter.getActualDistance(Math.ceil(maxFitness));
 
       var trainingInfo = document.getElementById('training-info');

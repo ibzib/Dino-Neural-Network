@@ -183,7 +183,7 @@ primaryControlOnLeft = false;
 
 function onDocumentLoad() {
   var trainingInfo = document.getElementById('training-info');
-  trainingInfo.value = 'Gen\tScore\n';
+  trainingInfo.value = 'Gen,\tScore\n';
 
   var controlButtonDiv = document.getElementById('control-buttons');
   var reloadButton = document.getElementById('reload-button');
