@@ -9,7 +9,8 @@
 - [ ] graph performance
 - [ ] make sure selection isn't getting mutated
 - [ ] let user train dinos until a certain score is reached
-- [ ] turn off invert when not rendering
+- [X] turn off invert when not rendering
+- [ ] don't change (and mess up) game when window is resized
 
 ### ideas for improvement
 - [ ] implement crossover??
