@@ -32,10 +32,10 @@ function Runner(outerContainerId, opt_config) {
 
   this.distanceMeter = null;
   this.distanceRan = 0;
-  this.allTimeMaxDistanceRan = 0;
-  this.eraMaxDistanceRan = 0;
   this.eraCount = 1;
   this.recordMaxFitness = 0;
+  this.checkpoint = CHECKPOINT_INTERVAL;
+  this.checkpointHit = false;
 
   this.highestScore = 0;
 
@@ -101,6 +101,7 @@ var RENDERING_ON = true; // are we showing dino on the screen in real time?
 var SHOW_DISTANCE_METER = true;
 var OUTPUT_SENSITIVITY = 0.05;
 var PAUSE_ON_TAB_OFF = false;
+var CHECKPOINT_INTERVAL = 100000;
 
 var tRexBoxColors = [
   'blue',
@@ -639,18 +640,32 @@ Runner.prototype = {
               this.collisionCount++;
             } else {
               tRex.perceptron.fitness = this.distanceRan;
-              if (this.distanceRan > this.allTimeMaxDistanceRan) {
-                this.allTimeMaxDistanceRan = this.distanceRan;
-              }
-              if (this.distanceRan > this.eraMaxDistanceRan) {
-                this.eraMaxDistanceRan = this.distanceRan;
-              }
             }
           }
         }, this);
 
         if (this.collisionCount < this.tRexes.length) {
           this.distanceRan += this.currentSpeed * deltaTime / this.msPerFrame;
+          var actualDistance =
+              this.distanceMeter.getActualDistance(Math.ceil(this.distanceRan));
+
+          if (actualDistance > this.checkpoint) {
+            var trainingInfo = document.getElementById('training-info');
+            if (this.checkpointHit) {
+              for (var k = trainingInfo.value.length-2; k >= 0 && trainingInfo.value[k] != '\n'; k--);
+                trainingInfo.value = trainingInfo.value.substr(0,k+1);              
+            }
+            trainingInfo.value += this.playCount + ',\t';
+            trainingInfo.value += actualDistance + '+\n';
+            trainingInfo.scrollTop = trainingInfo.scrollHeight;
+            this.checkpoint += CHECKPOINT_INTERVAL;
+            this.checkpointHit = true;
+            var that = this;
+            window.setTimeout(function() {
+              that.update()
+            }, 1);
+            return;
+          }
 
           if (this.currentSpeed < this.config.MAX_SPEED) {
             this.currentSpeed += this.config.ACCELERATION;
@@ -688,8 +703,6 @@ Runner.prototype = {
         } else if (this.invertTimer) {
           this.invertTimer += deltaTime;
         } else {
-          var actualDistance =
-              this.distanceMeter.getActualDistance(Math.ceil(this.distanceRan));
 
           if (actualDistance > 0) {
             this.invertTrigger = !(actualDistance %
@@ -812,6 +825,7 @@ Runner.prototype = {
       this.paused = false;
       this.crashed = false;
       this.distanceRan = 0;
+      this.checkpoint = CHECKPOINT_INTERVAL;
       this.setSpeed(this.config.SPEED);
       this.time = getTimeStamp();
       this.containerEl.classList.remove(Runner.classes.CRASHED);
@@ -819,11 +833,16 @@ Runner.prototype = {
       this.distanceMeter.reset(this.highestScore);
       this.horizon.reset();
       
+      var trainingInfo = document.getElementById('training-info');
+      if (this.checkpointHit) {
+        for (var k = trainingInfo.value.length-2; k >= 0 && trainingInfo.value[k] != '\n'; k--);
+          trainingInfo.value = trainingInfo.value.substr(0,k+1);
+      }
+      this.checkpointHit = false;
+
       var maxFitness = this.genetics.evolvePopulation();
       var message = this.playCount + ',\t';
       message += this.distanceMeter.getActualDistance(Math.ceil(maxFitness));
-
-      var trainingInfo = document.getElementById('training-info');
       trainingInfo.value += message + '\n';
       trainingInfo.scrollTop = trainingInfo.scrollHeight;
 
@@ -832,7 +851,6 @@ Runner.prototype = {
       }
       if (maxFitness < EXTINCTION_THRESHOLD) {
         this.lastExtinction = this.playCount;
-        this.eraMaxDistanceRan = 0;
         this.eraCount++;
       }
       this.playCount++;
