@@ -98,6 +98,7 @@ var HAS_OBSTACLES = true;
 var USE_NN = true;
 var AUTO_RESTART = true;
 var RENDERING_ON = true; // are we showing dino on the screen in real time?
+var INVERT_ON = false; // invert colors (nighttime)
 var SHOW_DISTANCE_METER = true;
 var OUTPUT_SENSITIVITY = 0.05;
 var PAUSE_ON_TAB_OFF = false;
@@ -576,7 +577,8 @@ Runner.prototype = {
     while (true) {
 
       var now = getTimeStamp();
-      var deltaTime = RENDERING_ON ? now - (this.time || now) : 16.666666;
+      // var deltaTime = RENDERING_ON ? now - (this.time || now) : 16.666666;
+      var deltaTime = 16.666666;
       this.time = now;
 
       if (this.playing) {
@@ -697,7 +699,7 @@ Runner.prototype = {
         if (this.invertTimer > this.config.INVERT_FADE_DURATION) {
           this.invertTimer = 0;
           this.invertTrigger = false;
-          if (RENDERING_ON) {
+          if (INVERT_ON && RENDERING_ON) {
             this.invert();
           }
         } else if (this.invertTimer) {
@@ -710,7 +712,7 @@ Runner.prototype = {
 
             if (this.invertTrigger && this.invertTimer === 0) {
               this.invertTimer += deltaTime;
-              if (RENDERING_ON) {
+              if (INVERT_ON && RENDERING_ON) {
                 this.invert();
               }
             }
