@@ -4,14 +4,14 @@ Rocco Manzo - Rmanzo
 */
 
 // parameters for genetic algo
-var POPULATION_SIZE = 50; // number of test subjects per generation
+var POPULATION_SIZE = 75; // number of test subjects per generation
 var SELECTION_SIZE = 10; // number of test subjects selected to continue
 var MUTATION_RATE = 0.12;
 var EXTINCTION_THRESHOLD = 3000;
 
 // neural network: # of neurons per layer
 var N_INPUTS = 5;
-var N_HIDDEN = 10;
+var N_HIDDEN = 20;
 var N_OUTPUTS = 1;
 
 // for debugging -- just make dinos jump randomly
