@@ -425,8 +425,8 @@ Runner.prototype = {
 
     this.update();
 
-    window.addEventListener(Runner.events.RESIZE,
-        this.debounceResize.bind(this));
+    // window.addEventListener(Runner.events.RESIZE,
+    //     this.debounceResize.bind(this));
   },
 
   /**
@@ -651,6 +651,10 @@ Runner.prototype = {
           var actualDistance =
               this.distanceMeter.getActualDistance(Math.ceil(this.distanceRan));
 
+          if (actualDistance > this.trainingCutoff) {
+            RENDERING_ON = true;
+          }
+
           if (actualDistance > this.checkpoint) {
             var trainingInfo = document.getElementById('training-info');
             if (this.checkpointHit) {
@@ -785,9 +789,6 @@ Runner.prototype = {
     if (this.distanceRan > this.highestScore) {
       this.highestScore = Math.ceil(this.distanceRan);
       this.distanceMeter.setHighScore(this.highestScore);
-      if (this.distanceMeter.getActualDistance(Math.ceil(this.distanceRan)) > this.trainingCutoff) {
-        RENDERING_ON = true;
-      }
     }
 
     // Reset the time clock.
@@ -1993,7 +1994,7 @@ DistanceMeter.yPos = [0, 13, 27, 40, 53, 67, 80, 93, 107, 120];
  */
 DistanceMeter.config = {
   // Number of digits.
-  MAX_DISTANCE_UNITS: 5,
+  MAX_DISTANCE_UNITS: 10,
 
   // Distance that causes achievement animation.
   ACHIEVEMENT_DISTANCE: 100,

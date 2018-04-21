@@ -8,10 +8,10 @@
 ### TODO
 - [X] let user train dinos until a certain score is reached
 - [X] turn off invert when not rendering
-- [ ] don't change (and mess up) game when window is resized
+- [X] don't change (and mess up) game when window is resized
 - [X] make deltaTime constant to prevent lag?
-- [ ] stop training after reaching score (don't wait for dinos to crash)
-- [ ] give scoreboard more digits
+- [X] stop training after reaching score (don't wait for dinos to crash)
+- [X] give scoreboard more digits
 - [ ] find some way to export successfully models
 
 ### ideas for improvement
