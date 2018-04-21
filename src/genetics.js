@@ -52,7 +52,7 @@ Genetics.prototype = {
 
     //assigns everybody a score (the last one should be 1)
     for(var i = 0; i < this.selectionSize; i++){
-      scores.push(Math.sqrt(this.population[i].fitness/totalFitness));
+      scores.push(this.population[i].fitness/totalFitness);
       for(var j = i; j >= 0; j--){
         scores[i] += scores[j];
       }

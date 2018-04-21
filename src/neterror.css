@@ -533,7 +533,7 @@ html[subframe] body {
 }
 
 .arcade-mode .interstitial-wrapper {
-  height: 100vh;
+  /*height: 100vh;*/
   max-width: 100%;
   overflow: hidden;
 }

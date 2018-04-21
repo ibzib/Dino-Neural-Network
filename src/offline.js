@@ -32,10 +32,10 @@ function Runner(outerContainerId, opt_config) {
 
   this.distanceMeter = null;
   this.distanceRan = 0;
-  this.allTimeMaxDistanceRan = 0;
-  this.eraMaxDistanceRan = 0;
   this.eraCount = 1;
   this.recordMaxFitness = 0;
+  this.checkpoint = CHECKPOINT_INTERVAL;
+  this.checkpointHit = false;
 
   this.highestScore = 0;
 
@@ -53,6 +53,7 @@ function Runner(outerContainerId, opt_config) {
   this.inverted = false;
   this.invertTimer = 0;
   this.resizeTimerId_ = null;
+  this.trainingCutoff = 0;
 
   this.playCount = 0;
   this.lastExtinction = 0;
@@ -96,11 +97,12 @@ var FPS = 60;
 var HAS_OBSTACLES = true;
 var USE_NN = true;
 var AUTO_RESTART = true;
-var RESTART_DELAY = 3000; // ms before restarting when AUTO_RESTART is set
+var RENDERING_ON = true; // are we showing dino on the screen in real time?
+var INVERT_ON = false; // invert colors (nighttime)
 var SHOW_DISTANCE_METER = true;
 var OUTPUT_SENSITIVITY = 0.05;
-var SHOW_INFO = true;
 var PAUSE_ON_TAB_OFF = false;
+var CHECKPOINT_INTERVAL = 100000;
 
 var tRexBoxColors = [
   'blue',
@@ -421,21 +423,10 @@ Runner.prototype = {
 
     this.outerContainerEl.appendChild(this.containerEl);
 
-    this.startListening();
     this.update();
 
     window.addEventListener(Runner.events.RESIZE,
         this.debounceResize.bind(this));
-  },
-
-  /**
-   * Create the touch controller. A div that covers whole screen.
-   */
-  createTouchController: function() {
-    this.touchController = document.createElement('div');
-    this.touchController.className = Runner.classes.TOUCH_CONTROLLER;
-    this.touchController.addEventListener(Runner.events.TOUCHSTART, this);
-    this.touchController.addEventListener(Runner.events.TOUCHEND, this);
   },
 
   /**
@@ -487,7 +478,7 @@ Runner.prototype = {
         this.containerEl.style.height = this.dimensions.HEIGHT + 'px';
         this.distanceMeter.update(0, Math.ceil(this.distanceRan));
         // this.stop();
-      } else {
+      } else if (RENDERING_ON) {
         this.tRexes.forEach(function (tRex) {
           tRex.draw(0, 0);
         });
@@ -496,7 +487,9 @@ Runner.prototype = {
       // Game over panel.
       if (this.crashed && this.gameOverPanel) {
         this.gameOverPanel.updateDimensions(this.dimensions.WIDTH);
-        this.gameOverPanel.draw();
+        if (RENDERING_ON) {
+          this.gameOverPanel.draw();
+        }
       }
     }
   },
@@ -519,8 +512,12 @@ Runner.prototype = {
           '}';
       document.styleSheets[0].insertRule(keyframes, 0);
 
-      this.containerEl.addEventListener(Runner.events.ANIM_END,
-          this.startGame.bind(this));
+      if (RENDERING_ON) {
+        this.containerEl.addEventListener(Runner.events.ANIM_END,
+            this.startGame.bind(this));      
+      } else {
+        this.startGame();
+      }
 
       this.containerEl.style.webkitAnimation = 'intro .4s ease-out 1 both';
       this.containerEl.style.width = this.dimensions.WIDTH + 'px';
@@ -574,276 +571,165 @@ Runner.prototype = {
    */
   update: function() {
     this.updatePending = false;
+    if (!this.playing) {
+      return;
+    }
+    while (true) {
 
-    var now = getTimeStamp();
-    var deltaTime = now - (this.time || now);
-    this.time = now;
+      var now = getTimeStamp();
+      // var deltaTime = RENDERING_ON ? now - (this.time || now) : 16.666666;
+      var deltaTime = 16.666666;
+      this.time = now;
 
-    if (this.playing) {
-      this.clearCanvas();
+      if (this.playing) {
+        if (RENDERING_ON) {
+          this.clearCanvas();
+        }
 
-      this.tRexes.forEach(function (tRex, index) {
-        if (tRex.status != Trex.status.CRASHED) {
-          if (tRex.jumping) {
-            tRex.updateJump(deltaTime);
-          }
-          if (USE_NN) {
-            var output = this.genetics.activate(index, this.horizon.obstacles[0], this.currentSpeed);
-            if (output > 0.5+OUTPUT_SENSITIVITY) {
-              if (!tRex.jumping) {
-                if (tRex.ducking) {
-                  tRex.setDuck(false);
-                } else {
-                  tRex.startJump(this.currentSpeed);
+        this.tRexes.forEach(function (tRex, index) {
+          if (tRex.status != Trex.status.CRASHED) {
+            if (tRex.jumping) {
+              tRex.updateJump(deltaTime);
+            }
+            if (USE_NN) {
+              var output = this.genetics.activate(index, this.horizon.obstacles[0], this.currentSpeed);
+              if (output > 0.5+OUTPUT_SENSITIVITY) {
+                if (!tRex.jumping) {
+                  if (tRex.ducking) {
+                    tRex.setDuck(false);
+                  } else {
+                    tRex.startJump(this.currentSpeed);
+                  }
+                }
+              } else if (output < 0.5-OUTPUT_SENSITIVITY) {
+                if (tRex.jumping) {
+                  tRex.setSpeedDrop();
+                } else if (!tRex.jumping && !tRex.ducking) {
+                  tRex.setDuck(true);
                 }
               }
-            } else if (output < 0.5-OUTPUT_SENSITIVITY) {
-              if (tRex.jumping) {
-                tRex.setSpeedDrop();
-              } else if (!tRex.jumping && !tRex.ducking) {
-                tRex.setDuck(true);
+            }
+          }
+        }, this);
+
+        this.runningTime += deltaTime;
+        if (HAS_OBSTACLES) {
+          var hasObstacles = this.runningTime > this.config.CLEAR_TIME;
+        } else {
+          var hasObstacles = false;
+        }
+
+        if (!this.playingIntro) {
+          this.playIntro();
+        }
+
+        // The horizon doesn't move until the intro is over.
+        if (this.playingIntro) {
+          this.horizon.update(0, this.currentSpeed, hasObstacles);
+        } else {
+          deltaTime = !this.activated ? 0 : deltaTime;
+          this.horizon.update(deltaTime, this.currentSpeed, hasObstacles,
+              this.inverted);
+        }
+
+        // Check for collisions.
+        this.tRexes.forEach(function (tRex, index) {
+          if (tRex.status != Trex.status.CRASHED) {
+            var collision = hasObstacles &&
+                checkForCollision(this.horizon.obstacles[0], tRex, this.canvasCtx);
+            if (collision) {
+              tRex.update(deltaTime, Trex.status.CRASHED, this.currentSpeed);
+              this.collisionCount++;
+            } else {
+              tRex.perceptron.fitness = this.distanceRan;
+            }
+          }
+        }, this);
+
+        if (this.collisionCount < this.tRexes.length) {
+          this.distanceRan += this.currentSpeed * deltaTime / this.msPerFrame;
+          var actualDistance =
+              this.distanceMeter.getActualDistance(Math.ceil(this.distanceRan));
+
+          if (actualDistance > this.checkpoint) {
+            var trainingInfo = document.getElementById('training-info');
+            if (this.checkpointHit) {
+              for (var k = trainingInfo.value.length-2; k >= 0 && trainingInfo.value[k] != '\n'; k--);
+                trainingInfo.value = trainingInfo.value.substr(0,k+1);              
+            }
+            trainingInfo.value += this.playCount + ',\t';
+            trainingInfo.value += actualDistance + '+\n';
+            trainingInfo.scrollTop = trainingInfo.scrollHeight;
+            this.checkpoint += CHECKPOINT_INTERVAL;
+            this.checkpointHit = true;
+            var that = this;
+            window.setTimeout(function() {
+              that.update()
+            }, 1);
+            return;
+          }
+
+          if (this.currentSpeed < this.config.MAX_SPEED) {
+            this.currentSpeed += this.config.ACCELERATION;
+          }
+        } else {
+          this.gameOver();
+        }
+
+        if (!this.playing) {
+          return;
+        }
+
+        var playAchievementSound = this.distanceMeter.update(deltaTime,
+            Math.ceil(this.distanceRan));
+
+        if (playAchievementSound) {
+          this.playSound(this.soundFx.SCORE);
+        }
+
+        if (RENDERING_ON) {
+          // display generation #
+          this.canvasCtx.fillStyle = 'lightgray';
+          var info = "gen " + this.playCount;
+          info += " dinos: " + (POPULATION_SIZE-this.collisionCount) + "/" + POPULATION_SIZE;
+          this.canvasCtx.fillText(info, this.dimensions.WIDTH/2-this.canvasCtx.measureText(info).width/2, 8);
+        }
+
+        // Night mode.
+        if (this.invertTimer > this.config.INVERT_FADE_DURATION) {
+          this.invertTimer = 0;
+          this.invertTrigger = false;
+          if (INVERT_ON && RENDERING_ON) {
+            this.invert();
+          }
+        } else if (this.invertTimer) {
+          this.invertTimer += deltaTime;
+        } else {
+
+          if (actualDistance > 0) {
+            this.invertTrigger = !(actualDistance %
+                this.config.INVERT_DISTANCE);
+
+            if (this.invertTrigger && this.invertTimer === 0) {
+              this.invertTimer += deltaTime;
+              if (INVERT_ON && RENDERING_ON) {
+                this.invert();
               }
             }
           }
         }
-      }, this);
-
-      this.runningTime += deltaTime;
-      if (HAS_OBSTACLES) {
-        var hasObstacles = this.runningTime > this.config.CLEAR_TIME;
-      } else {
-        var hasObstacles = false;
       }
 
-      if (this.tRexes[0].jumpCount == 1 && !this.playingIntro) {
-        this.playIntro();
-      }
-
-      // The horizon doesn't move until the intro is over.
-      if (this.playingIntro) {
-        this.horizon.update(0, this.currentSpeed, hasObstacles);
-      } else {
-        deltaTime = !this.activated ? 0 : deltaTime;
-        this.horizon.update(deltaTime, this.currentSpeed, hasObstacles,
-            this.inverted);
-      }
-
-      // Check for collisions.
-      this.tRexes.forEach(function (tRex, index) {
-        if (tRex.status != Trex.status.CRASHED) {
-          var collision = hasObstacles &&
-              checkForCollision(this.horizon.obstacles[0], tRex, this.canvasCtx);
-          if (collision) {
-            tRex.update(deltaTime, Trex.status.CRASHED, this.currentSpeed);
-            this.collisionCount++;
-          } else {
-            tRex.perceptron.fitness = this.distanceRan;
-            if (this.distanceRan > this.allTimeMaxDistanceRan) {
-              this.allTimeMaxDistanceRan = this.distanceRan;
-            }
-            if (this.distanceRan > this.eraMaxDistanceRan) {
-              this.eraMaxDistanceRan = this.distanceRan;
-            }
-          }
-        }
-      }, this);
-
-      if (this.collisionCount < this.tRexes.length) {
-        this.distanceRan += this.currentSpeed * deltaTime / this.msPerFrame;
-
-        if (this.currentSpeed < this.config.MAX_SPEED) {
-          this.currentSpeed += this.config.ACCELERATION;
-        }
-      } else {
-        this.gameOver();
-      }
-
-      var playAchievementSound = this.distanceMeter.update(deltaTime,
-          Math.ceil(this.distanceRan));
-
-      if (playAchievementSound) {
-        this.playSound(this.soundFx.SCORE);
-      }
-
-      if (SHOW_INFO) {
-        // display generation #
-        this.canvasCtx.fillStyle = 'lightgray';
-        var info = "gen " + this.playCount;
-        info += " dinos: " + (POPULATION_SIZE-this.collisionCount) + "/" + POPULATION_SIZE;
-        this.canvasCtx.fillText(info, this.dimensions.WIDTH/2-this.canvasCtx.measureText(info).width/2, 8);
-      }
-
-      // Night mode.
-      if (this.invertTimer > this.config.INVERT_FADE_DURATION) {
-        this.invertTimer = 0;
-        this.invertTrigger = false;
-        this.invert();
-      } else if (this.invertTimer) {
-        this.invertTimer += deltaTime;
-      } else {
-        var actualDistance =
-            this.distanceMeter.getActualDistance(Math.ceil(this.distanceRan));
-
-        if (actualDistance > 0) {
-          this.invertTrigger = !(actualDistance %
-              this.config.INVERT_DISTANCE);
-
-          if (this.invertTrigger && this.invertTimer === 0) {
-            this.invertTimer += deltaTime;
-            this.invert();
-          }
+      if (this.playing) {
+        this.tRexes.forEach(function (tRex) {
+          tRex.update(deltaTime, tRex.status, this.currentSpeed);
+        }, this);
+        if (RENDERING_ON) {
+          this.scheduleNextUpdate();
+          return;
         }
       }
     }
-
-    if (this.playing) {
-      this.tRexes.forEach(function (tRex) {
-        tRex.update(deltaTime, tRex.status, this.currentSpeed);
-      }, this);
-      this.scheduleNextUpdate();
-    }
-  },
-
-  /**
-   * Event handler.
-   */
-  handleEvent: function(e) {
-    return (function(evtType, events) {
-      switch (evtType) {
-        case events.KEYDOWN:
-        case events.TOUCHSTART:
-        case events.POINTERDOWN:
-          this.onKeyDown(e);
-          break;
-        case events.KEYUP:
-        case events.TOUCHEND:
-        case events.POINTERUP:
-          this.onKeyUp(e);
-          break;
-      }
-    }.bind(this))(e.type, Runner.events);
-  },
-
-  /**
-   * Bind relevant key / mouse / touch listeners.
-   */
-  startListening: function() {
-    // Keys.
-    document.addEventListener(Runner.events.KEYDOWN, this);
-    document.addEventListener(Runner.events.KEYUP, this);
-
-    // Touch / pointer.
-    this.containerEl.addEventListener(Runner.events.TOUCHSTART, this);
-    document.addEventListener(Runner.events.POINTERDOWN, this);
-    document.addEventListener(Runner.events.POINTERUP, this);
-  },
-
-  /**
-   * Remove all listeners.
-   */
-  stopListening: function() {
-    document.removeEventListener(Runner.events.KEYDOWN, this);
-    document.removeEventListener(Runner.events.KEYUP, this);
-
-    if (this.touchController) {
-      this.touchController.removeEventListener(Runner.events.TOUCHSTART, this);
-      this.touchController.removeEventListener(Runner.events.TOUCHEND, this);
-    }
-
-    this.containerEl.removeEventListener(Runner.events.TOUCHSTART, this);
-    document.removeEventListener(Runner.events.POINTERDOWN, this);
-    document.removeEventListener(Runner.events.POINTERUP, this);
-  },
-
-  /**
-   * Process keydown.
-   * @param {Event} e
-   */
-  onKeyDown: function(e) {
-    // Prevent native page scrolling whilst tapping on mobile.
-    if (IS_MOBILE && this.playing) {
-      e.preventDefault();
-    }
-
-    if (!this.crashed && !this.paused) {
-      if (Runner.keycodes.JUMP[e.keyCode] ||
-          e.type == Runner.events.TOUCHSTART) {
-        e.preventDefault();
-        // Starting the game for the first time.
-        if (!this.playing) {
-          // Started by touch so create a touch controller.
-          if (!this.touchController && e.type == Runner.events.TOUCHSTART) {
-            this.createTouchController();
-          }
-          // this.loadSounds();
-          this.playing = true;
-          this.update();
-          if (window.errorPageController) {
-            errorPageController.trackEasterEgg();
-          }
-        }
-        // Start jump.
-        if (!this.tRexes[0].jumping && !this.tRexes[0].ducking) {
-          this.playSound(this.soundFx.BUTTON_PRESS);
-          this.tRexes[0].startJump(this.currentSpeed);
-        }
-      } else if (this.playing && Runner.keycodes.DUCK[e.keyCode]) {
-        e.preventDefault();
-        if (this.tRexes[0].jumping) {
-          // Speed drop, activated only when jump key is not pressed.
-          this.tRexes[0].setSpeedDrop();
-        } else if (!this.tRexes[0].jumping && !this.tRexes[0].ducking) {
-          // Duck.
-          this.tRexes[0].setDuck(true);
-        }
-      }
-    } else if (this.crashed && e.type == Runner.events.TOUCHSTART &&
-        e.currentTarget == this.containerEl) {
-      this.restart();
-    }
-  },
-
-
-  /**
-   * Process key up.
-   * @param {Event} e
-   */
-  onKeyUp: function(e) {
-    var keyCode = String(e.keyCode);
-    var isjumpKey = Runner.keycodes.JUMP[keyCode] ||
-       e.type == Runner.events.TOUCHEND ||
-       e.type == Runner.events.POINTERUP;
-
-    if (this.isRunning() && isjumpKey) {
-      this.tRexes[0].endJump();
-    } else if (Runner.keycodes.DUCK[keyCode]) {
-      this.tRexes[0].speedDrop = false;
-      this.tRexes[0].setDuck(false);
-    } else if (this.crashed) {
-      // Check that enough time has elapsed before allowing jump key to restart.
-      var deltaTime = getTimeStamp() - this.time;
-
-      if (Runner.keycodes.RESTART[keyCode] || this.isLeftClickOnCanvas(e) ||
-          (deltaTime >= this.config.GAMEOVER_CLEAR_TIME &&
-          Runner.keycodes.JUMP[keyCode])) {
-        this.restart();
-      }
-    } else if (this.paused && isjumpKey) {
-      // Reset the jump state
-      this.tRexes[0].reset();
-      this.play();
-    }
-  },
-
-  /**
-   * Returns whether the event was a left click on canvas.
-   * On Windows right click is registered as a click.
-   * @param {Event} e
-   * @return {boolean}
-   */
-  isLeftClickOnCanvas: function(e) {
-    return e.button != null && e.button < 2 &&
-        e.type == Runner.events.POINTERUP && e.target == this.canvas;
   },
 
   /**
@@ -864,6 +750,17 @@ Runner.prototype = {
     return !!this.raqId;
   },
 
+  startTraining: function(cutoff) {
+    this.trainingCutoff = cutoff;
+    RENDERING_ON = false;
+    this.startRunning();
+  },
+
+  startRunning: function() {
+    this.playing = true;
+    this.update();
+  },
+
   /**
    * Game over state.
    */
@@ -880,7 +777,7 @@ Runner.prototype = {
       this.gameOverPanel = new GameOverPanel(this.canvas,
           this.spriteDef.TEXT_SPRITE, this.spriteDef.RESTART,
           this.dimensions);
-    } else {
+    } else if (RENDERING_ON) {
       this.gameOverPanel.draw();
     }
 
@@ -888,6 +785,9 @@ Runner.prototype = {
     if (this.distanceRan > this.highestScore) {
       this.highestScore = Math.ceil(this.distanceRan);
       this.distanceMeter.setHighScore(this.highestScore);
+      if (this.distanceMeter.getActualDistance(Math.ceil(this.distanceRan)) > this.trainingCutoff) {
+        RENDERING_ON = true;
+      }
     }
 
     // Reset the time clock.
@@ -897,7 +797,7 @@ Runner.prototype = {
       var that = this; // save context
       window.setTimeout(function() {
         that.restart();
-      }, RESTART_DELAY);
+      }, (RENDERING_ON ? 3000 : 1));
     }
   },
 
@@ -927,6 +827,7 @@ Runner.prototype = {
       this.paused = false;
       this.crashed = false;
       this.distanceRan = 0;
+      this.checkpoint = CHECKPOINT_INTERVAL;
       this.setSpeed(this.config.SPEED);
       this.time = getTimeStamp();
       this.containerEl.classList.remove(Runner.classes.CRASHED);
@@ -934,20 +835,24 @@ Runner.prototype = {
       this.distanceMeter.reset(this.highestScore);
       this.horizon.reset();
       
+      var trainingInfo = document.getElementById('training-info');
+      if (this.checkpointHit) {
+        for (var k = trainingInfo.value.length-2; k >= 0 && trainingInfo.value[k] != '\n'; k--);
+          trainingInfo.value = trainingInfo.value.substr(0,k+1);
+      }
+      this.checkpointHit = false;
+
       var maxFitness = this.genetics.evolvePopulation();
-      var message = '';
-      message += 'era number: ' + this.eraCount;
-      message += ' play count: ' + this.playCount;
-      message += ' max score: ' + this.distanceMeter.getActualDistance(maxFitness);
-      console.log(message);
+      var message = this.playCount + ',\t';
+      message += this.distanceMeter.getActualDistance(Math.ceil(maxFitness));
+      trainingInfo.value += message + '\n';
+      trainingInfo.scrollTop = trainingInfo.scrollHeight;
+
       if (maxFitness > this.recordMaxFitness) {
         this.recordMaxFitness = maxFitness;
-        console.log('NEW RECORD');
       }
       if (maxFitness < EXTINCTION_THRESHOLD) {
-        console.log('EXTINCTION');
         this.lastExtinction = this.playCount;
-        this.eraMaxDistanceRan = 0;
         this.eraCount++;
       }
       this.playCount++;
@@ -1174,7 +1079,9 @@ function GameOverPanel(canvas, textImgPos, restartImgPos, dimensions) {
   this.canvasDimensions = dimensions;
   this.textImgPos = textImgPos;
   this.restartImgPos = restartImgPos;
-  this.draw();
+  if (RENDERING_ON) {
+    this.draw();
+  }
 };
 
 
@@ -1284,7 +1191,7 @@ function checkForCollision(obstacle, tRex, opt_canvasCtx) {
       obstacle.typeConfig.height - 2);
 
   // Debug outer box
-  if (opt_canvasCtx) {
+  if (RENDERING_ON && opt_canvasCtx) {
     drawCollisionBoxes(opt_canvasCtx, tRexBox, tRex.color, obstacleBox);
   }
 
@@ -1305,7 +1212,7 @@ function checkForCollision(obstacle, tRex, opt_canvasCtx) {
         var crashed = boxCompare(adjTrexBox, adjObstacleBox);
 
         // Draw boxes for debug.
-        if (opt_canvasCtx) {
+        if (RENDERING_ON && opt_canvasCtx) {
           drawCollisionBoxes(opt_canvasCtx, adjTrexBox, tRex.color, adjObstacleBox);
         }
 
@@ -1464,8 +1371,9 @@ Obstacle.prototype = {
     } else {
       this.yPos = this.typeConfig.yPos;
     }
-
-    this.draw();
+    if (RENDERING_ON) {
+      this.draw();
+    }
 
     // Make collision box adjustments,
     // Central box is adjusted to the size as one box.
@@ -1540,7 +1448,9 @@ Obstacle.prototype = {
           this.timer = 0;
         }
       }
-      this.draw();
+      if (RENDERING_ON) {
+        this.draw();
+      } 
 
       if (!this.isVisible()) {
         this.remove = true;
@@ -1786,7 +1696,10 @@ Trex.prototype = {
     this.yPos = this.groundYPos;
     this.minJumpHeight = this.groundYPos - this.config.MIN_JUMP_HEIGHT;
 
-    this.draw(0, 0);
+    if (RENDERING_ON) {
+      this.draw(0, 0);
+    }
+
     this.update(0, Trex.status.WAITING);
   },
 
@@ -1830,10 +1743,10 @@ Trex.prototype = {
       this.blink(getTimeStamp());
     } else if (this.status == Trex.status.CRASHED) {
       this.xPos -= Math.floor((speed * FPS / 1000) * deltaTime);
-      if (this.xPos >= 0) {
+      if (RENDERING_ON && this.xPos >= 0) {
         this.draw(this.currentAnimFrames[this.currentFrame], 0);
       }
-    } else {
+    } else if (RENDERING_ON) {
       this.draw(this.currentAnimFrames[this.currentFrame], 0);
     }
 
@@ -1908,7 +1821,9 @@ Trex.prototype = {
     var deltaTime = time - this.animStartTime;
 
     if (deltaTime >= this.blinkDelay) {
-      this.draw(this.currentAnimFrames[this.currentFrame], 0);
+      if (RENDERING_ON) {
+        this.draw(this.currentAnimFrames[this.currentFrame], 0);
+      }
 
       if (this.currentFrame == 1) {
         // Set new random delay to blink.
@@ -2105,7 +2020,9 @@ DistanceMeter.prototype = {
     this.calcXPos(width);
     this.maxScore = this.maxScoreUnits;
     for (var i = 0; i < this.maxScoreUnits; i++) {
-      this.draw(i, 0);
+      if (RENDERING_ON) {
+        this.draw(i, 0);
+      }
       this.defaultString += '0';
       maxDistanceStr += '9';
     }
@@ -2235,14 +2152,15 @@ DistanceMeter.prototype = {
     }
 
     // Draw the digits if not flashing.
-    if (paint) {
-      for (var i = this.digits.length - 1; i >= 0; i--) {
-        this.draw(i, parseInt(this.digits[i]));
+    if (RENDERING_ON) {
+      if (paint) {
+        for (var i = this.digits.length - 1; i >= 0; i--) {
+          this.draw(i, parseInt(this.digits[i]));
+        }
       }
-    }
-
-    if (SHOW_DISTANCE_METER) {
-      this.drawHighScore();
+      if (SHOW_DISTANCE_METER) {
+        this.drawHighScore();
+      }      
     }
     return playSound;
   },
@@ -2327,7 +2245,9 @@ Cloud.prototype = {
   init: function() {
     this.yPos = getRandomNum(Cloud.config.MAX_SKY_LEVEL,
         Cloud.config.MIN_SKY_LEVEL);
-    this.draw();
+    if (RENDERING_ON) {
+      this.draw();
+    }
   },
 
   /**
@@ -2359,7 +2279,9 @@ Cloud.prototype = {
   update: function(speed) {
     if (!this.remove) {
       this.xPos -= Math.ceil(speed);
-      this.draw();
+      if (RENDERING_ON) {
+        this.draw();
+      }
 
       // Mark as removeable if no longer in the canvas.
       if (!this.isVisible()) {
@@ -2447,7 +2369,9 @@ NightMode.prototype = {
                 NightMode.config.STAR_SPEED);
          }
       }
-      this.draw();
+      if (RENDERING_ON) {
+        this.draw();
+      }
     } else {
       this.opacity = 0;
       this.placeStars();
@@ -2556,7 +2480,9 @@ function HorizonLine(canvas, spritePos) {
   this.bumpThreshold = 0.5;
 
   this.setSourceDimensions();
-  this.draw();
+  if (RENDERING_ON) {
+    this.draw();
+  }
 };
 
 
@@ -2650,7 +2576,9 @@ HorizonLine.prototype = {
     } else {
       this.updateXPos(1, increment);
     }
-    this.draw();
+    if (RENDERING_ON) {
+      this.draw();
+    }
   },
 
   /**
