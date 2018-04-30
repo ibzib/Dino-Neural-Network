@@ -27,3 +27,4 @@
 ### ideas for improvement
 - [ ] experiment with different NN structures
 - [ ] add complement of child
+- [ ] create offspring with > 2 parents
